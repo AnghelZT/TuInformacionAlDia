@@ -48,12 +48,12 @@
             
             <div class="flex items-center space-x-2">
                 <!-- Botón de Administración -->
-                <button id="adminBtn" onclick="toggleAdminView()" class="bg-slate-800 hover:bg-slate-700 text-gray-200 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+<button id="adminBtn" onclick="toggleAdminView()" class="bg-slate-800 hover:bg-slate-700 text-gray-200 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
                     <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i>
                     <span id="adminBtnText" class="hidden sm:inline">Panel Admin</span>
                 </button>
 
-                <button onclick="openPublishModal()" class="bg-red-600 hover:bg-red-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition shadow">
+                <button id="publishBtn" onclick="openPublishModal()" class="bg-red-600 hover:bg-red-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition shadow hidden">
                     <i data-lucide="plus-circle" class="w-4 h-4"></i>
                     <span>Redactar</span>
                 </button>
@@ -1176,7 +1176,13 @@
             }
         }
 
-        function openPublishModal(id = null) {
+function openPublishModal(id = null) {
+            // Solo el admin puede redactar
+            if (!isAdminLoggedIn) {
+                showToast('🔒 Debes iniciar sesión como administrador para redactar noticias.', 'warning');
+                return;
+            }
+            
             const modal = document.getElementById('publishModal');
             const form = document.getElementById('newsForm');
             form.reset();
@@ -1461,6 +1467,7 @@
                 closeLoginModal();
                 document.getElementById('adminBtnText').textContent = 'Panel Admin (Activo)';
                 document.getElementById('adminDashboard').classList.remove('hidden');
+                document.getElementById('publishBtn').classList.remove('hidden');
                 showToast('🔑 Sesión de Administrador iniciada.', 'success');
             } else {
                 adminLoginAttempts++;
@@ -1483,6 +1490,7 @@
             isAdminLoggedIn = false;
             document.getElementById('adminBtnText').textContent = 'Panel Admin';
             document.getElementById('adminDashboard').classList.add('hidden');
+            document.getElementById('publishBtn').classList.add('hidden');
             showToast('🔒 Sesión del Panel Admin cerrada.', 'info');
         }
 
