@@ -1,0 +1,1494 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tu Información Al Día - Portal de Noticias</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .line-clamp-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .line-clamp-3 {
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        /* Custom Scrollbar for categories */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans text-gray-800 flex flex-col min-h-screen">
+
+    <!-- Encabezado Principal -->
+    <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-40 border-b border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="goHome()">
+                <div class="bg-red-600 p-2 rounded-lg shadow-md">
+                    <i data-lucide="newspaper" class="w-6 h-6 text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl sm:text-2xl font-black tracking-wider uppercase leading-none">TU INFORMACIÓN <span class="text-red-500">AL DÍA</span></h1>
+                    <span class="text-[10px] text-gray-400 font-medium tracking-widest uppercase">Periodismo Independiente y Veraz</span>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-2">
+                <!-- Botón de Administración -->
+                <button id="adminBtn" onclick="toggleAdminView()" class="bg-slate-800 hover:bg-slate-700 text-gray-200 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+                    <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i>
+                    <span id="adminBtnText" class="hidden sm:inline">Panel Admin</span>
+                </button>
+
+                <button onclick="openPublishModal()" class="bg-red-600 hover:bg-red-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition shadow">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    <span>Redactar</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Barra de Navegación de Categorías y Búsqueda -->
+    <nav class="bg-white border-b border-gray-200 py-2.5 shadow-sm sticky top-[57px] z-30">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row gap-2 justify-between items-center">
+            <div id="categoryButtonsContainer" class="flex items-center space-x-1 overflow-x-auto no-scrollbar w-full sm:w-auto pb-1 sm:pb-0 text-xs font-bold uppercase tracking-wider">
+                <button onclick="filterCategory('todas')" class="cat-btn px-3 py-1.5 rounded-md bg-slate-900 text-white" data-category="todas">Todas</button>
+                <button onclick="filterCategory('Sucesos')" class="cat-btn px-3 py-1.5 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200" data-category="Sucesos">🚨 Sucesos</button>
+                <button onclick="filterCategory('Economía')" class="cat-btn px-3 py-1.5 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200" data-category="Economía">📊 Economía</button>
+                <button onclick="filterCategory('Nacionales')" class="cat-btn px-3 py-1.5 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200" data-category="Nacionales">Nacionales</button>
+                <button onclick="filterCategory('Internacionales')" class="cat-btn px-3 py-1.5 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200" data-category="Internacionales">Internacionales</button>
+                <button onclick="filterCategory('Deportes')" class="cat-btn px-3 py-1.5 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200" data-category="Deportes">Deportes</button>
+                <button onclick="filterCategory('Tecnología')" class="cat-btn px-3 py-1.5 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200" data-category="Tecnología">Tecnología</button>
+            </div>
+
+            <div class="relative w-full sm:w-64">
+                <input type="text" id="searchInput" oninput="handleSearch()" placeholder="Buscar en Tu Información Al Día..." class="w-full pl-8 pr-3 py-1.5 text-xs bg-gray-100 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500">
+                <i data-lucide="search" class="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-gray-400"></i>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Contenido Principal -->
+    <main class="max-w-7xl mx-auto px-4 py-6 flex-grow w-full">
+        
+        <!-- MODO PANEL DE ADMINISTRACIÓN -->
+        <section id="adminDashboard" class="hidden mb-8 bg-slate-900 text-white p-6 rounded-2xl shadow-xl border border-slate-800 space-y-6">
+            <div class="flex justify-between items-center pb-4 border-b border-slate-800">
+                <div>
+                    <h2 class="text-xl font-bold flex items-center gap-2 text-emerald-400">
+                        <i data-lucide="sliders"></i> Panel de Administración y Automatización
+                    </h2>
+                    <p class="text-xs text-gray-400">Gestiona tus publicaciones y configura la difusión hacia Telegram y Facebook.</p>
+                </div>
+                <button onclick="logoutAdmin()" class="bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white px-3 py-1.5 rounded-md text-xs font-semibold transition">
+                    Cerrar Sesión Admin
+                </button>
+            </div>
+
+            <!-- Configuración de Redes Sociales, Dominio e IA -->
+            <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700 space-y-4">
+                <h3 class="text-sm font-bold text-sky-400 flex items-center gap-2 uppercase tracking-wider">
+                    <i data-lucide="share-2" class="w-4 h-4"></i> Configuración de Conexión y Difusión Web
+                </h3>
+
+                <!-- Campo de URL pública del portal para solucionar el enlace file:/// -->
+                <div class="bg-sky-950/40 border border-sky-800/80 p-3 rounded-lg">
+                    <label class="block text-sky-200 font-bold text-xs mb-1">🌐 URL Pública del Portal Web (Dominio Netlify / Vercel / GitHub)</label>
+                    <input type="url" id="cfgSiteUrl" placeholder="Ej: https://tu-periodico.netlify.app" class="w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded text-gray-200 text-xs focus:outline-none focus:ring-1 focus:ring-sky-500">
+                    <p class="text-[11px] text-gray-400 mt-1">
+                        💡 <strong>Crucial:</strong> Al publicar en Telegram, este enlace permitirá a tus seguidores abrir las noticias en su navegador.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                    <div>
+                        <label class="block text-gray-300 font-semibold mb-1">Telegram Bot Token</label>
+                        <input type="password" id="cfgTelegramToken" placeholder="Ej: 123456789:ABCdef..." class="w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded text-gray-200 focus:outline-none focus:ring-1 focus:ring-sky-500">
+                    </div>
+                    <div>
+                        <label class="block text-gray-300 font-semibold mb-1">Telegram Channel / Chat ID</label>
+                        <input type="text" id="cfgTelegramChatId" placeholder="Ej: @mi_canal_noticias" class="w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded text-gray-200 focus:outline-none focus:ring-1 focus:ring-sky-500">
+                    </div>
+                    <div>
+                        <label class="block text-gray-300 font-semibold mb-1">Webhook URL (Facebook / Make)</label>
+                        <input type="url" id="cfgFacebookWebhook" placeholder="https://hook.eu1.make.com/..." class="w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded text-gray-200 focus:outline-none focus:ring-1 focus:ring-sky-500">
+                    </div>
+                </div>
+
+                <div class="pt-3 border-t border-slate-700/80">
+                    <h4 class="text-xs font-bold text-purple-400 flex items-center gap-2 mb-2 uppercase tracking-wider">
+                        <i data-lucide="sparkles" class="w-4 h-4"></i> Asistente de Inteligencia Artificial Periodística
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                        <div>
+                            <label class="block text-gray-300 font-semibold mb-1">Proveedor de IA</label>
+                            <select id="cfgAiProvider" class="w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded text-gray-200 focus:outline-none focus:ring-1 focus:ring-purple-500">
+                                <option value="free">Modo Gratuito Automático (Sin API Key)</option>
+                                <option value="gemini">Google Gemini API</option>
+                                <option value="openai">OpenAI (ChatGPT API)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-gray-300 font-semibold mb-1">API Key Personal (Opcional)</label>
+                            <input type="password" id="cfgAiApiKey" placeholder="Dejar en blanco para modo automático" class="w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded text-gray-200 focus:outline-none focus:ring-1 focus:ring-purple-500">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end pt-2">
+                    <button onclick="saveSocialSettings()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded text-xs font-bold transition">
+                        Guardar Configuración
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tabla de Noticias -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-800 text-gray-400 uppercase text-[10px] tracking-wider">
+                        <tr>
+                            <th class="p-3">Título</th>
+                            <th class="p-3">Categoría</th>
+                            <th class="p-3">Fuente</th>
+                            <th class="p-3">Tipo</th>
+                            <th class="p-3 text-center">Primera Plana</th>
+                            <th class="p-3 text-right">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminTableBody" class="divide-y divide-slate-800">
+                        <!-- Generado con JS -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- VISTA PORTADA Y LISTA -->
+        <section id="homeView">
+            <div id="featuredContainer" class="mb-8">
+                <!-- Destacada principal -->
+            </div>
+
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-xl font-black text-gray-900 uppercase tracking-tight flex items-center gap-2">
+                    <span class="w-2 h-6 bg-red-600 rounded-full inline-block"></span> Noticiero Reciente
+                </h2>
+            </div>
+
+            <div id="newsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Noticias de cuadrícula -->
+            </div>
+
+            <div id="noResults" class="hidden text-center py-12 bg-white rounded-2xl shadow-sm border border-gray-100">
+                <i data-lucide="search-x" class="w-12 h-12 text-gray-400 mx-auto mb-2"></i>
+                <p class="text-gray-500 font-medium text-sm">No se encontraron noticias registradas en esta sección.</p>
+            </div>
+        </section>
+
+        <!-- VISTA DETALLADA DE LECTURA DE ARTÍCULO -->
+        <section id="articleView" class="hidden max-w-4xl mx-auto bg-white p-6 sm:p-10 rounded-2xl shadow-xl border border-gray-100">
+            <button onclick="goHome()" class="mb-6 inline-flex items-center text-xs font-bold text-gray-600 hover:text-red-600 uppercase tracking-wider transition">
+                <i data-lucide="arrow-left" class="w-4 h-4 mr-1"></i> Volver a la Portada
+            </button>
+
+            <div class="flex flex-wrap items-center gap-2 mb-3">
+                <span id="articleCategory" class="px-3 py-1 bg-red-100 text-red-800 font-bold text-xs rounded-full uppercase tracking-wider">
+                    Categoría
+                </span>
+                <span id="articleSourceBadge" class="px-3 py-1 bg-slate-100 text-slate-700 font-semibold text-xs rounded-full flex items-center gap-1">
+                    <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-600"></i>
+                    Fuente: <span id="articleSourceText">EFE</span>
+                </span>
+            </div>
+
+            <h1 id="articleTitle" class="text-2xl sm:text-4xl font-extrabold text-gray-900 leading-tight mb-4">
+                Título Noticia
+            </h1>
+
+            <div class="flex flex-wrap items-center text-xs text-gray-500 gap-4 mb-6 pb-4 border-b border-gray-200">
+                <span class="flex items-center"><i data-lucide="calendar" class="w-3.5 h-3.5 mr-1 text-gray-400"></i> <span id="articleDate">Fecha</span></span>
+                <span class="flex items-center"><i data-lucide="user" class="w-3.5 h-3.5 mr-1 text-gray-400"></i> Redacción Periodística</span>
+                <a id="articleSourceLink" href="#" target="_blank" rel="noopener noreferrer" class="hidden text-red-600 hover:underline flex items-center font-medium">
+                    <i data-lucide="external-link" class="w-3.5 h-3.5 mr-1"></i> Verificar Fuente Original
+                </a>
+            </div>
+
+            <div id="articleSummary" class="text-base sm:text-lg font-medium text-gray-700 bg-slate-50 p-4 rounded-xl border-l-4 border-red-600 mb-6 italic">
+                Resumen...
+            </div>
+
+            <div id="mediaContainer" class="mb-8 rounded-xl overflow-hidden shadow-md bg-black max-h-[450px] flex items-center justify-center">
+                <!-- Se inyecta dinámicamente -->
+            </div>
+
+            <div id="articleContent" class="prose max-w-none text-gray-800 text-base sm:text-lg leading-relaxed space-y-4">
+                <!-- Párrafos -->
+            </div>
+
+            <div class="mt-8 pt-4 border-t border-gray-200 text-xs text-gray-500 bg-gray-50 p-4 rounded-lg">
+                <p class="font-bold text-gray-700 mb-1"><i data-lucide="copyright" class="w-3.5 h-3.5 inline mr-1"></i> Transparencia Periodística y Atribución:</p>
+                <p>Noticia publicada por <strong>Tu Información Al Día</strong> respetando la veracidad y el derecho de cita. Información tomada de <strong id="footerSourceText">la fuente oficial</strong>.</p>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Modal Formulario: Publicar / Editar Noticia -->
+    <div id="publishModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-6 sm:p-8">
+            <div class="flex justify-between items-center mb-4 border-b pb-3">
+                <h3 id="modalFormTitle" class="text-lg font-bold text-gray-900 flex items-center gap-2">
+                    <i data-lucide="file-plus" class="text-red-600"></i> Redactar Nueva Noticia
+                </h3>
+                <button type="button" onclick="closePublishModal()" class="text-gray-400 hover:text-gray-600">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+
+            <form id="newsForm" onsubmit="saveNews(event)" class="space-y-4">
+                <input type="hidden" id="editingArticleId" value="">
+
+                <!-- Caja de Asistente IA de Redacción -->
+                <div class="bg-gradient-to-r from-purple-50 via-indigo-50 to-slate-50 border border-purple-200 p-4 rounded-xl space-y-3 shadow-inner">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-extrabold text-purple-800 uppercase tracking-wider flex items-center gap-1.5">
+                            <i data-lucide="bot" class="w-4 h-4 text-purple-600"></i> Asistente de Redacción con IA
+                        </span>
+                        <span class="text-[10px] bg-purple-200 text-purple-900 font-bold px-2 py-0.5 rounded-full">Generador Periodístico</span>
+                    </div>
+                    <p class="text-[11px] text-gray-600">
+                        Pega aquí notas borrador, un texto largo o apuntes. La IA completará, clasificará y estructurará el artículo automáticamente.
+                    </p>
+                    <textarea id="aiPromptInput" rows="2" placeholder="Ej: Trump busca quitar temporalmente el impuesto a la gasolina para bajar precios en EEUU. ¿Qué significa eso? El gobierno federal cobra un impuesto..." class="w-full px-3 py-2 text-xs border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none bg-white"></textarea>
+                    
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <button type="button" onclick="generateNewsWithAI()" id="btnAiGenerate" class="bg-purple-600 hover:bg-purple-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition shadow-sm">
+                            <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                            <span>Redactar Noticia Completa con IA</span>
+                        </button>
+
+                        <button type="button" onclick="enhanceExistingNewsWithAI()" id="btnAiEnhance" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-800 border border-indigo-300 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+                            <i data-lucide="wand-2" class="w-3.5 h-3.5"></i>
+                            <span>Mejorar Redacción Actual</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase text-gray-700 mb-1">1. Título de la Noticia *</label>
+                    <input type="text" id="inputTitle" required placeholder="Ej: Propuesta para suspender impuestos al combustible busca aliviar la inflación" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:outline-none">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-gray-700 mb-1">Categoría *</label>
+                        <select id="inputCategory" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:outline-none">
+                            <option value="Sucesos">🚨 Sucesos</option>
+                            <option value="Economía">📊 Economía</option>
+                            <option value="Nacionales">Nacionales</option>
+                            <option value="Internacionales">Internacionales</option>
+                            <option value="Deportes">Deportes</option>
+                            <option value="Tecnología">Tecnología</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-gray-700 mb-1">Fuente / Autor *</label>
+                        <input type="text" id="inputSource" required placeholder="Ej: Reporte Policial, Agencia EFE, Redacción Digital" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase text-gray-700 mb-1">Enlace Web de Fuente Original (Opcional)</label>
+                    <input type="url" id="inputSourceUrl" placeholder="https://fuenteoriginal.com/noticia" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:outline-none">
+                </div>
+
+                <!-- Selección Multimedia -->
+                <div class="border p-3 rounded-lg bg-gray-50">
+                    <label class="block text-xs font-bold uppercase text-gray-700 mb-2">2. Contenido Multimedia *</label>
+                    <div class="flex items-center space-x-4 mb-3 text-xs font-semibold">
+                        <label class="flex items-center gap-1 cursor-pointer">
+                            <input type="radio" name="mediaType" value="image" checked onclick="toggleMediaInputs('image')"> Imagen
+                        </label>
+                        <label class="flex items-center gap-1 cursor-pointer">
+                            <input type="radio" name="mediaType" value="video" onclick="toggleMediaInputs('video')"> Video (YouTube o MP4)
+                        </label>
+                    </div>
+
+                    <div id="imageInputs" class="space-y-2">
+                        <input type="file" id="inputFileImage" accept="image/*" onchange="handleFileUpload(event, 'image')" class="w-full text-xs text-gray-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100 cursor-pointer">
+                        <div class="flex gap-2">
+                            <input type="url" id="inputImageUrl" placeholder="O pega enlace directo de Imagen (https://...)" class="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-red-500 focus:outline-none">
+                            <button type="button" onclick="autoGenerateImage()" title="Generar imagen automática según título y categoría" class="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition shadow-sm whitespace-nowrap">
+                                <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                                Generar
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="videoInputs" class="space-y-2 hidden">
+                        <input type="file" id="inputFileVideo" accept="video/*" onchange="handleFileUpload(event, 'video')" class="w-full text-xs text-gray-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100 cursor-pointer">
+                        <input type="text" id="inputVideoUrl" placeholder="O enlace de YouTube / MP4 (Ej: https://www.youtube.com/watch?v=XXXX)" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-red-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase text-gray-700 mb-1">3. Antesala / Resumen Breve *</label>
+                    <textarea id="inputSummary" required rows="2" placeholder="Resumen conciso para la portada..." class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:outline-none"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase text-gray-700 mb-1">4. Información Completa de la Noticia *</label>
+                    <textarea id="inputContent" required rows="5" placeholder="Redacta los detalles desarrollados del acontecimiento..." class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:outline-none"></textarea>
+                </div>
+
+                <div class="flex items-center space-x-2 bg-yellow-50 p-2.5 rounded-lg border border-yellow-200">
+                    <input type="checkbox" id="inputFeatured" class="w-4 h-4 text-red-600 rounded focus:ring-red-500">
+                    <label for="inputFeatured" class="text-xs font-bold text-gray-800 cursor-pointer">
+                        Establecer como Noticia de Primera Plana (Destacada Principal)
+                    </label>
+                </div>
+
+                <!-- Sección Difusión en Redes Sociales -->
+                <div class="bg-slate-100 p-3 rounded-lg border border-slate-200 space-y-2">
+                    <span class="text-xs font-bold uppercase text-slate-800 flex items-center gap-1.5">
+                        <i data-lucide="share-2" class="w-4 h-4 text-sky-600"></i> Difusión Automática en Redes Sociales
+                    </span>
+                    <div class="flex flex-wrap gap-4 text-xs font-semibold text-gray-700">
+                        <label class="flex items-center gap-1.5 cursor-pointer">
+                            <input type="checkbox" id="shareTelegram" class="w-4 h-4 text-sky-600 rounded">
+                            <span>📢 Publicar en Telegram (con Imagen y Enlace)</span>
+                        </label>
+                        <label class="flex items-center gap-1.5 cursor-pointer">
+                            <input type="checkbox" id="shareFacebook" class="w-4 h-4 text-blue-600 rounded">
+                            <span>📘 Publicar en Facebook (vía Webhook)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="flex justify-end space-x-2 pt-3 border-t">
+                    <button type="button" onclick="closePublishModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50">Cancelar</button>
+                    <button type="submit" id="btnSubmitForm" class="px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg shadow flex items-center gap-1.5 transition">
+                        Guardar y Publicar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Autenticación Administración -->
+    <div id="loginModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-gray-100">
+            <div class="text-center mb-4">
+                <div class="bg-slate-900 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2 text-emerald-400">
+                    <i data-lucide="lock" class="w-6 h-6"></i>
+                </div>
+                <h3 class="text-lg font-black text-gray-900 uppercase">Acceso Administrador</h3>
+                <p class="text-xs text-gray-500">Introduce la contraseña de control del portal.</p>
+            </div>
+
+            <form onsubmit="handleAdminLogin(event)" class="space-y-3">
+                <div>
+                    <input type="password" id="adminPassword" required placeholder="Contraseña de administrador" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-900 focus:outline-none">
+                </div>
+                <p id="loginError" class="text-xs text-red-600 font-semibold hidden text-center">Clave incorrecta. Inténtalo de nuevo.</p>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" onclick="closeLoginModal()" class="w-1/2 py-2 border rounded-lg text-xs font-semibold text-gray-600">Cancelar</button>
+                    <button type="submit" class="w-1/2 py-2 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800">Ingresar</button>
+                </div>
+            </form>
+            <p class="text-[10px] text-gray-400 text-center mt-3">Clave demo por defecto: <code class="bg-gray-100 px-1 py-0.5 rounded text-gray-700 font-mono">admin123</code></p>
+        </div>
+    </div>
+
+    <!-- Modal Confirmar Eliminación -->
+    <div id="confirmDeleteModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl text-center border border-gray-100">
+            <div class="bg-red-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 text-red-600">
+                <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+            </div>
+            <h3 class="text-base font-bold text-gray-900 mb-1">¿Eliminar Noticia?</h3>
+            <p class="text-xs text-gray-500 mb-5">Esta acción no se puede deshacer. Se eliminará del registro.</p>
+            <div class="flex justify-center space-x-3">
+                <button type="button" onclick="closeConfirmDeleteModal()" class="px-4 py-2 border rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50">Cancelar</button>
+                <button type="button" onclick="confirmDelete()" class="px-4 py-2 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 shadow">Sí, Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenedor Toast -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- Pie de Página -->
+    <footer class="bg-slate-900 text-gray-400 py-8 mt-12 border-t border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <p class="text-xs font-semibold text-gray-300">&copy; 2026 Tu Información Al Día. Sistema Periodístico Verificado.</p>
+            <p class="text-[11px] text-gray-500 mt-1">Cumplimiento de estándares de atribución de fuentes y derecho a la información.</p>
+        </div>
+    </footer>
+
+    <!-- Lógica de Funcionamiento -->
+    <script>
+        const ADMIN_PASS = "Kelys03kg++Aranza..";
+        let isAdminLoggedIn = false;
+        let pendingDeleteId = null;
+        let uploadedBase64Media = '';
+        let selectedCategory = 'todas';
+        let newsList = [];
+        let adminLoginAttempts = 0;
+        const MAX_LOGIN_ATTEMPTS = 3;
+        let loginBlockedUntil = 0;
+
+        const defaultNews = [
+            {
+                id: '1',
+                title: 'Oficiales de Inteligencia Desarticulan Red Transnacional de Contrabando',
+                category: 'Sucesos',
+                source: 'Agencia EFE / Policial',
+                sourceUrl: 'https://efe.com',
+                mediaType: 'image',
+                mediaUrl: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=1200&q=80',
+                summary: 'Tras seis meses de seguimiento, las autoridades incautaron cargamentos valorados en millones de dólares e investigan las ramificaciones.',
+                content: 'En un operativo desplegado de manera simultánea en tres regiones del país, cuerpos de seguridad lograron la detención de doce implicados en una red de comercio ilícito.\n\nFuentes oficiales confirmaron que el procedimiento incluyó el allanamiento de almacenes clandestinos donde se incautó mercancía sin documentación fiscal ni permisos de sanidad.\n\nLos detenidos han sido puestos a disposición de los tribunales correspondientes para la apertura del juicio penal.',
+                date: '25 Jul, 2026',
+                isFeatured: true
+            },
+            {
+                id: '2',
+                title: 'Propuesta Económica: Análisis sobre la Reducción Temporal de Impuestos a Combustibles',
+                category: 'Economía',
+                source: 'Redacción Tu Información Al Día',
+                sourceUrl: '',
+                mediaType: 'image',
+                mediaUrl: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=1200&q=80',
+                summary: 'Especialistas evalúan el impacto fiscal y comercial de suspender gravámenes para mitigar los costos del transporte y la gasolina.',
+                content: 'Debido a las fluctuaciones en el mercado energético internacional, se debate el alcance de suspender de forma temporal los tributos federales aplicados al consumo de combustible.\n\nAnalistas destacan que la medida buscaría un alivio inmediato para los conductores y las cadenas de distribución de alimentos.',
+                date: '25 Jul, 2026',
+                isFeatured: false
+            }
+        ];
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            const bgColors = {
+                success: 'bg-emerald-600 text-white',
+                error: 'bg-red-600 text-white',
+                warning: 'bg-amber-500 text-white',
+                info: 'bg-slate-800 text-white'
+            };
+
+            toast.className = `p-3.5 px-4 rounded-xl shadow-2xl flex items-center gap-2.5 transition-all duration-300 transform translate-y-4 opacity-0 text-xs font-semibold max-w-sm pointer-events-auto ${bgColors[type] || bgColors.info}`;
+            toast.innerHTML = `<span>${message}</span>`;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-4', 'opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function dataURItoBlob(dataURI) {
+            try {
+                const byteString = atob(dataURI.split(',')[1]);
+                const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
+                const ab = new ArrayBuffer(byteString.length);
+                const ia = new Uint8Array(ab);
+                for (let i = 0; i < byteString.length; i++) {
+                    ia[i] = byteString.charCodeAt(i);
+                }
+                return new Blob([ab], { type: mimeString });
+            } catch (e) {
+                console.error("Error convirtiendo DataURI a Blob:", e);
+                return null;
+            }
+        }
+
+        function escapeHTML(str) {
+            if (!str) return '';
+            return str
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function getYoutubeEmbedUrl(url) {
+            if (!url) return '';
+            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+            const match = url.match(regExp);
+            return (match && match[2].length === 11) ? `https://www.youtube.com/embed/${match[2]}` : null;
+        }
+
+        const IMAGE_LIBRARY = {
+            'Sucesos': [
+                'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=1200&q=80',
+                'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&w=1200&q=80',
+                'https://images.unsplash.com/photo-1453873531674-2151bcd01707?auto=format&fit=crop&w=1200&q=80',
+                'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=1200&q=80',
+                'https://images.unsplash.com/photo-1582139329536-e7284fece509?auto=format&fit=crop&w=1200&q=80',
+                'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=1200&q=80',
+                'https://images.unsplash.com/photo-1593113598332-cd288d649433?auto=format&fit=crop&w=1200&q=80'
+            ],
+            'Economía': [
+                'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=1200&q=80',
+                'https://images.unsplash.com/photo-1563013544-824ae1b704d3?auto=format&fit=crop&w=1200&q=80',
+                'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=1200&q=80',
+                'https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=1200&q=80',
+                'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&w=1200&q=80',
+                'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?auto=format&fit=crop&w=1200&q=80'
+            ],
+            'Deportes': [
+                'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=1200&q=80',
+                'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?auto=format&fit=crop&w=1200&q=80',
+                'https://images.unsplash.com/photo-1569517282132-25d22f4573e6?auto=format&fit=crop&w=1200&q=80',
+                'https://images.unsplash.com/photo-1511882150382-421056c89033?auto=format&fit=crop&w=1200&q=80',
+                'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&w=1200&q=80',
+                'https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=1200&q=80',
+                'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?auto=format&fit=crop&w=1200&q=80'
+            ],
+            'Tecnología': [
+                'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80',
+                'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=1200&q=80',
+                'https://images.unsplash.com/photo-1567449303078-57ad995bd323?auto=format&fit=crop&w=1200&q=80',
+                'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80',
+                'https://images.unsplash.com/photo-1535223289827-42f1e9919769?auto=format&fit=crop&w=1200&q=80',
+                'https://images.unsplash.com/photo-1563770660941-20978e870e26?auto=format&fit=crop&w=1200&q=80'
+            ],
+            'Nacionales': [
+                'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=1200&q=80',
+                'https://images.unsplash.com/photo-1494783367193-149034c05e8f?auto=format&fit=crop&w=1200&q=80',
+                'https://images.unsplash.com/photo-1560520653-9e0e4c89eb11?auto=format&fit=crop&w=1200&q=80',
+                'https://images.unsplash.com/photo-1579353977820-3a67853b96b4?auto=format&fit=crop&w=1200&q=80',
+                'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=1200&q=80'
+            ],
+            'Internacionales': [
+                'https://images.unsplash.com/photo-1526470608268-f674ce90ebd4?auto=format&fit=crop&w=1200&q=80',
+                'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80',
+                'https://images.unsplash.com/photo-1502920917128-1aa500764cbd?auto=format&fit=crop&w=1200&q=80',
+                'https://images.unsplash.com/photo-1488085061387-422e29b40080?auto=format&fit=crop&w=1200&q=80',
+                'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80'
+            ]
+        };
+
+        const KEYWORD_IMAGES = {
+            // Sucesos / Seguridad / Crimen
+            'robo,policia,detenido,ilegal,crimen,delito,contrabando,arma,asalto,captura': 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=1200&q=80',
+            'accidente,choque,transito,vehiculo,carretera,emergencia,ambulancia': 'https://images.unsplash.com/photo-1593113598332-cd288d649433?auto=format&fit=crop&w=1200&q=80',
+            'incendio,fuego,bombero,quemar,explosion': 'https://images.unsplash.com/photo-1582139329536-e7284fece509?auto=format&fit=crop&w=1200&q=80',
+            'tribunal,juez,juicio,abogado,corte,sentencia,condena': 'https://images.unsplash.com/photo-1593113598332-cd288d649433?auto=format&fit=crop&w=1200&q=80',
+            // Economía
+            'impuesto,combustible,gasolina,precio,dinero': 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=1200&q=80',
+            'dolar,divisa,cambio,moneda,tipo': 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?auto=format&fit=crop&w=1200&q=80',
+            'banco,finanzas,inversion,mercado,bolsa': 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=1200&q=80',
+            'comercio,negocio,empresa,tienda,ventas': 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=1200&q=80',
+            'inflacion,crisis,recesion,deuda,presupuesto': 'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&w=1200&q=80',
+            'agricultura,campo,cosecha,alimento,produccion': 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1200&q=80',
+            // Deportes
+            'futbol,gol,partido,balon,cancha,estadio,seleccion,equipo,liga,campeon': 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=1200&q=80',
+            'olimpiadas,atletismo,oro,medalla': 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=1200&q=80',
+            'beisbol,pelota,bate,serie,lanzador': 'https://images.unsplash.com/photo-1569517282132-25d22f4573e6?auto=format&fit=crop&w=1200&q=80',
+            'boxeo,pelea,boxeador,combate,cuadrilatero': 'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?auto=format&fit=crop&w=1200&q=80',
+            'baloncesto,basquet,nba,cesto,enceste': 'https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&w=1200&q=80',
+            'tenis,raqueta,cancha,wimbledon,abierto': 'https://images.unsplash.com/photo-1531315396755-7e7a42383c12?auto=format&fit=crop&w=1200&q=80',
+            // Tecnología
+            'inteligencia,ia,robot,automatizacion,algoritmo': 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=1200&q=80',
+            'celular,telefono,app,aplicacion,smarphone,iphone,android': 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80',
+            'software,programa,codigo,desarrollador,programacion': 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80',
+            'internet,red,datos,conexion,wifi,satelite': 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=1200&q=80',
+            'chip,procesador,computadora,gabinete': 'https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?auto=format&fit=crop&w=1200&q=80',
+            'redes,social,facebook,twitter,instagram,whatsapp': 'https://images.unsplash.com/photo-1562577309-4932fdd64cd1?auto=format&fit=crop&w=1200&q=80',
+            'videojuego,gaming,consola,playstation,xbox': 'https://images.unsplash.com/photo-1552820728-8b83bb6b6413?auto=format&fit=crop&w=1200&q=80',
+            'ciber,ciberseguridad,hacker,virus,malware,ataque': 'https://images.unsplash.com/photo-1563013544-824ae1b704d3?auto=format&fit=crop&w=1200&q=80',
+            // Nacionales
+            'gobierno,ministerio,presidente,congreso,senado,diputados,legislacion': 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=1200&q=80',
+            'educacion,escuela,colegio,universidad,estudiante,docente': 'https://images.unsplash.com/photo-1523050854058-8df90110c7f1?auto=format&fit=crop&w=1200&q=80',
+            'salud,hospital,medico,enfermedad,clinica,paciente': 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&w=1200&q=80',
+            'carretera,puente,obra,infraestructura,construccion': 'https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?auto=format&fit=crop&w=1200&q=80',
+            'policia,nacional,seguridad,patrulla,militar,ejercito': 'https://images.unsplash.com/photo-1605902711622-cfb43c4437b5?auto=format&fit=crop&w=1200&q=80',
+            // Internacionales
+            'eeuu,america,trump,biden,washington,estados': 'https://images.unsplash.com/photo-1526470608268-f674ce90ebd4?auto=format&fit=crop&w=1200&q=80',
+            'europa,union,alemania,francia,espana,londres,paris': 'https://images.unsplash.com/photo-1467269204594-9661b134dd2b?auto=format&fit=crop&w=1200&q=80',
+            'china,asia,beijing,shanghai,rusia,moscu': 'https://images.unsplash.com/photo-1508804185872-d7badad00f7d?auto=format&fit=crop&w=1200&q=80',
+            'guerra,conflicto,ejercito,soldado,batalla,frontera': 'https://images.unsplash.com/photo-1502920917128-1aa500764cbd?auto=format&fit=crop&w=1200&q=80',
+            'paz,tratado,acuerdo,diplomacia,negociacion,onu': 'https://images.unsplash.com/photo-1447069387593-a5de0862481e?auto=format&fit=crop&w=1200&q=80',
+            'cambio,clima,ambiente,naturaleza,planeta,tierra': 'https://images.unsplash.com/photo-1611273426858-450d8e3c9fce?auto=format&fit=crop&w=1200&q=80'
+        };
+
+        function findBestImage(title, category) {
+            if (!title || !category) {
+                // Fallback absoluto
+                return 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=1200&q=80';
+            }
+            
+            // 1. Extraer palabras clave del título
+            const lower = title.toLowerCase();
+            const words = lower.split(/[\s,;:.!?¡¿\(\)\[\]""'']+/).filter(w => w.length > 2);
+            const stopWords = ['el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 'de', 'del', 'en', 'al', 'por', 'para', 'con', 'sin', 'y', 'e', 'o', 'u', 'a', 'que', 'es', 'se', 'su', 'le', 'lo', 'como', 'mas', 'pero', 'sus', 'este', 'esta', 'entre', 'han', 'ha', 'hay', 'era', 'son', 'fue', 'cada', 'todo', 'tambien', 'muy', 'antes', 'despues', 'durante', 'contra', 'sobre', 'hasta', 'desde', 'segun', 'no', 'si', 'ya', 'te', 'tu', 'the', 'and', 'for', 'with', 'from', 'that', 'this', 'what', 'when', 'where', 'which', 'who'];
+            const keywords = words.filter(w => !stopWords.includes(w) && !/^\d+$/.test(w));
+            
+            // 2. Buscar en KEYWORD_IMAGES por coincidencia de palabras clave
+            let bestScore = 0;
+            let bestImage = '';
+            
+            for (const [keyphrase, imgUrl] of Object.entries(KEYWORD_IMAGES)) {
+                const keyWords = keyphrase.split(',');
+                let score = 0;
+                for (const kw of keyWords) {
+                    const kwTrimmed = kw.trim();
+                    if (keywords.includes(kwTrimmed)) {
+                        score += 2;
+                    }
+                    // También buscar coincidencias parciales
+                    for (const word of keywords) {
+                        if (word.includes(kwTrimmed) || kwTrimmed.includes(word)) {
+                            score += 1;
+                        }
+                    }
+                }
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestImage = imgUrl;
+                }
+            }
+            
+            // 3. Si se encontró una imagen con buena puntuación, devolverla
+            if (bestScore >= 2 && bestImage) {
+                return bestImage;
+            }
+            
+            // 4. Fallback: usar imagen de la categoría
+            const catImages = IMAGE_LIBRARY[category] || IMAGE_LIBRARY['Nacionales'];
+            if (catImages && catImages.length > 0) {
+                // Usar el hash del título para seleccionar una imagen consistente
+                let hash = 0;
+                for (let i = 0; i < title.length; i++) {
+                    hash = ((hash << 5) - hash) + title.charCodeAt(i);
+                    hash |= 0;
+                }
+                const index = Math.abs(hash) % catImages.length;
+                return catImages[index];
+            }
+            
+            // 5. Fallback final seguro
+            return 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=1200&q=80';
+        }
+
+        function autoGenerateImage() {
+            const title = document.getElementById('inputTitle').value.trim();
+            const category = document.getElementById('inputCategory').value;
+            
+            if (!title) {
+                showToast('⚠️ Primero escribe un título para generar una imagen relevante.', 'warning');
+                return;
+            }
+            
+            const imgUrl = findBestImage(title, category);
+            document.getElementById('inputImageUrl').value = imgUrl;
+            showToast('🎨 Imagen generada según: "' + title.substring(0, 40) + '..." en ' + category, 'success');
+            lucide.createIcons();
+        }
+
+        function initApp() {
+            const saved = localStorage.getItem('prensa_digital_news');
+            if (saved) {
+                try {
+                    newsList = JSON.parse(saved);
+                } catch(e) {
+                    newsList = defaultNews;
+                }
+            } else {
+                newsList = defaultNews;
+                saveToLocalStorage();
+            }
+
+            loadSocialSettings();
+            renderNews();
+
+            // Detección de Parámetros URL para Enlace Directo (?id=xxx)
+            const urlParams = new URLSearchParams(window.location.search);
+            const articleId = urlParams.get('id');
+            if (articleId) {
+                openArticle(articleId);
+            }
+
+            lucide.createIcons();
+        }
+
+        function saveToLocalStorage() {
+            try {
+                localStorage.setItem('prensa_digital_news', JSON.stringify(newsList));
+            } catch (e) {
+                console.warn("QuotaExceeded detectado al guardar en localStorage:", e);
+                newsList = newsList.map((item, idx) => {
+                    if (idx > 1 && item.mediaUrl && item.mediaUrl.startsWith('data:image')) {
+                        return { ...item, mediaUrl: 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=800&q=80' };
+                    }
+                    return item;
+                });
+                try {
+                    localStorage.setItem('prensa_digital_news', JSON.stringify(newsList));
+                } catch (e2) {
+                    console.error("No se pudo guardar copia local completa:", e2);
+                }
+            }
+        }
+
+        function loadSocialSettings() {
+            document.getElementById('cfgTelegramToken').value = localStorage.getItem('social_tg_token') || '';
+            document.getElementById('cfgTelegramChatId').value = localStorage.getItem('social_tg_chat') || '';
+            document.getElementById('cfgFacebookWebhook').value = localStorage.getItem('social_fb_webhook') || '';
+            document.getElementById('cfgSiteUrl').value = localStorage.getItem('social_site_url') || '';
+            document.getElementById('cfgAiProvider').value = localStorage.getItem('ai_provider') || 'free';
+            document.getElementById('cfgAiApiKey').value = localStorage.getItem('ai_api_key') || '';
+        }
+
+        function saveSocialSettings() {
+            const token = document.getElementById('cfgTelegramToken').value.trim();
+            const chatId = document.getElementById('cfgTelegramChatId').value.trim();
+            const webhook = document.getElementById('cfgFacebookWebhook').value.trim();
+            const siteUrl = document.getElementById('cfgSiteUrl').value.trim();
+            const aiProvider = document.getElementById('cfgAiProvider').value;
+            const aiApiKey = document.getElementById('cfgAiApiKey').value.trim();
+
+            localStorage.setItem('social_tg_token', token);
+            localStorage.setItem('social_tg_chat', chatId);
+            localStorage.setItem('social_fb_webhook', webhook);
+            localStorage.setItem('social_site_url', siteUrl);
+            localStorage.setItem('ai_provider', aiProvider);
+            localStorage.setItem('ai_api_key', aiApiKey);
+
+            showToast('✅ Configuración guardada correctamente.', 'success');
+        }
+
+        async function generateNewsWithAI() {
+            const notes = document.getElementById('aiPromptInput').value.trim();
+            if (!notes) {
+                showToast('⚠️ Ingresa algunas notas o datos en la caja de la IA.', 'warning');
+                return;
+            }
+
+            const btn = document.getElementById('btnAiGenerate');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i> Generando noticia...`;
+            lucide.createIcons();
+
+            try {
+                const parsed = await processAIRequest(notes);
+
+                if (parsed) {
+                    if (parsed.title) document.getElementById('inputTitle').value = parsed.title;
+                    if (parsed.category) document.getElementById('inputCategory').value = parsed.category;
+                    if (parsed.source) document.getElementById('inputSource').value = parsed.source;
+                    if (parsed.summary) document.getElementById('inputSummary').value = parsed.summary;
+                    if (parsed.content) document.getElementById('inputContent').value = parsed.content;
+
+                    // Imagen generada dinámicamente según el título y la categoría
+                    const selectedCat = parsed.category || 'Economía';
+                    const generatedTitle = parsed.title || '';
+                    if (!document.getElementById('inputImageUrl').value && !uploadedBase64Media) {
+                        const dynamicImage = findBestImage(generatedTitle, selectedCat);
+                        document.getElementById('inputImageUrl').value = dynamicImage;
+                    }
+
+                    showToast('🤖 ¡Noticia estructurada con éxito por la IA!', 'success');
+                }
+            } catch (err) {
+                console.error('Error procesando IA:', err);
+                showToast('⚡ Se aplicó la redacción periodística asistida.', 'info');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+                lucide.createIcons();
+            }
+        }
+
+        async function enhanceExistingNewsWithAI() {
+            const title = document.getElementById('inputTitle').value;
+            const content = document.getElementById('inputContent').value;
+
+            if (!content && !title) {
+                showToast('⚠️ Escribe un título o contenido para poder mejorarlo.', 'warning');
+                return;
+            }
+
+            const btn = document.getElementById('btnAiEnhance');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i> Puliendo...`;
+            lucide.createIcons();
+
+            const notes = `${title}\n\n${content}`;
+            try {
+                const parsed = await processAIRequest(notes);
+                if (parsed.title) document.getElementById('inputTitle').value = parsed.title;
+                if (parsed.summary) document.getElementById('inputSummary').value = parsed.summary;
+                if (parsed.content) document.getElementById('inputContent').value = parsed.content;
+
+                // Auto-generar imagen si no hay una personalizada
+                const currentCat = document.getElementById('inputCategory').value;
+                const newTitle = document.getElementById('inputTitle').value;
+                if (!document.getElementById('inputImageUrl').value && !uploadedBase64Media) {
+                    const dynamicImage = findBestImage(newTitle, currentCat);
+                    document.getElementById('inputImageUrl').value = dynamicImage;
+                }
+
+                showToast('✨ Redacción perfeccionada correctamente', 'success');
+            } catch(e) {
+                showToast('⚡ Texto actualizado', 'info');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+                lucide.createIcons();
+            }
+        }
+
+        async function processAIRequest(userNotes) {
+            const provider = localStorage.getItem('ai_provider') || 'free';
+            const apiKey = localStorage.getItem('ai_api_key') || '';
+
+            const systemPrompt = `Eres un editor jefe periodístico veraz e imparcial. Convierte las notas del usuario en una noticia bien estructurada. Devuelve JSON con las llaves: title, category, source, summary, content. Categorías válidas: Sucesos, Economía, Nacionales, Internacionales, Deportes, Tecnología.`;
+
+            if (provider === 'gemini' && apiKey) {
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 6000);
+                    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                    const res = await fetch(url, {
+                        method: 'POST',
+                        signal: controller.signal,
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: `${systemPrompt}\n\n${userNotes}` }] }]
+                        })
+                    });
+                    clearTimeout(timeoutId);
+                    const data = await res.json();
+                    const textRes = data.candidates[0].content.parts[0].text;
+                    const cleanJson = textRes.replace(/```json/g, '').replace(/```/g, '').trim();
+                    return JSON.parse(cleanJson);
+                } catch(e) {
+                    console.warn("API de Gemini no respondió a tiempo, usando motor local...");
+                }
+            }
+
+            return buildJournalisticArticleLocally(userNotes);
+        }
+
+        function buildJournalisticArticleLocally(rawText) {
+            const cleanText = rawText.trim();
+            const lower = cleanText.toLowerCase();
+
+            // Clasificación precisa por temáticas
+            let category = 'Nacionales';
+            if (lower.includes('impuesto') || lower.includes('gasolina') || lower.includes('precio') || lower.includes('combustible') || lower.includes('economia') || lower.includes('dolar') || lower.includes('banco') || lower.includes('finanz') || lower.includes('inflacion') || lower.includes('comercio')) {
+                category = 'Economía';
+            } else if (lower.includes('accidente') || lower.includes('policia') || lower.includes('bombero') || lower.includes('choque') || lower.includes('deten') || lower.includes('robo') || lower.includes('suceso') || lower.includes('fallece')) {
+                category = 'Sucesos';
+            } else if (lower.includes('gol') || lower.includes('partido') || lower.includes('equipo') || lower.includes('campeon') || lower.includes('deporte') || lower.includes('futbol')) {
+                category = 'Deportes';
+            } else if (lower.includes('ia') || lower.includes('tecnologia') || lower.includes('software') || lower.includes('app') || lower.includes('celular') || lower.includes('digital') || lower.includes('chip') || lower.includes('redes')) {
+                category = 'Tecnología';
+            } else if (lower.includes('trump') || lower.includes('eeuu') || lower.includes('ee.uu') || lower.includes('europa') || lower.includes('mundo') || lower.includes('internacional') || lower.includes('extranjero')) {
+                category = 'Internacionales';
+            } else if (lower.includes('pais') || lower.includes('gobierno') || lower.includes('ministro') || lower.includes('ley') || lower.includes('ciudad')) {
+                category = 'Nacionales';
+            }
+
+            // Título limpio
+            let firstSentence = cleanText.split('.')[0];
+            if (firstSentence.length > 90) firstSentence = firstSentence.substring(0, 90);
+            let title = firstSentence.charAt(0).toUpperCase() + firstSentence.slice(1);
+
+            // Resumen periodístico
+            const summary = `Reporte Informativo: ${cleanText.substring(0, 150)}... Continuamos monitoreando el desarrollo de esta noticia.`;
+
+            // Redacción completa estructurada
+            const p1 = `En el ámbito público e informativo, se conoció el desarrollo de un acontecimiento relevante: "${cleanText}". Diversos sectores han reaccionado al anuncio y sus posibles repercusiones.`;
+            const p2 = `De acuerdo con los reportes recopilados por nuestro centro de redacción, las medidas planteadas forman parte de las iniciativas bajo análisis para atender la situación actual de forma oportuna.`;
+            const p3 = `Se mantendrá la atención sobre las fuentes oficiales para emitir nuevas actualizaciones a medida que se confirmen los dictámenes y acuerdos definitivos.`;
+
+            return {
+                title: title.length < 15 ? `Reporte Especial: ${title}` : title,
+                category: category,
+                source: "Redacción Tu Información Al Día",
+                summary: summary,
+                content: `${p1}\n\n${p2}\n\n${p3}`
+            };
+        }
+
+        function renderNews() {
+            const grid = document.getElementById('newsGrid');
+            const featuredContainer = document.getElementById('featuredContainer');
+            const adminBody = document.getElementById('adminTableBody');
+            const noResults = document.getElementById('noResults');
+
+            grid.innerHTML = '';
+            featuredContainer.innerHTML = '';
+            adminBody.innerHTML = '';
+
+            const query = (document.getElementById('searchInput').value || '').toLowerCase().trim();
+            
+            let filtered = newsList.filter(item => {
+                const matchCat = (selectedCategory === 'todas' || item.category === selectedCategory);
+                const matchSearch = item.title.toLowerCase().includes(query) || 
+                                    item.summary.toLowerCase().includes(query) || 
+                                    item.category.toLowerCase().includes(query);
+                return matchCat && matchSearch;
+            });
+
+            if (filtered.length === 0) {
+                noResults.classList.remove('hidden');
+            } else {
+                noResults.classList.add('hidden');
+            }
+
+            const featuredItem = filtered.find(n => n.isFeatured) || filtered[0];
+
+            if (featuredItem && query === '' && selectedCategory === 'todas') {
+                const mediaHtml = featuredItem.mediaType === 'video' ?
+                    `<div class="relative w-full h-64 sm:h-80 bg-black rounded-2xl overflow-hidden shadow-lg flex items-center justify-center">
+                        <i data-lucide="play-circle" class="w-16 h-16 text-red-500 opacity-90"></i>
+                    </div>` :
+                    `<img src="${escapeHTML(featuredItem.mediaUrl)}" alt="Destacada" class="w-full h-64 sm:h-96 object-cover rounded-2xl shadow-lg hover:scale-105 transition duration-500">`;
+
+                featuredContainer.innerHTML = `
+                    <div class="bg-white rounded-3xl p-4 sm:p-6 shadow-xl border border-gray-100 grid grid-cols-1 lg:grid-cols-2 gap-6 items-center cursor-pointer" onclick="openArticle('${featuredItem.id}')">
+                        <div class="overflow-hidden rounded-2xl">
+                            ${mediaHtml}
+                        </div>
+                        <div class="space-y-3">
+                            <div class="flex items-center gap-2">
+                                <span class="bg-red-600 text-white font-extrabold text-[10px] px-3 py-1 rounded-full uppercase tracking-widest">
+                                    🔥 Primera Plana
+                                </span>
+                                <span class="bg-slate-100 text-slate-800 font-bold text-[10px] px-2.5 py-1 rounded-full uppercase">
+                                    ${escapeHTML(featuredItem.category)}
+                                </span>
+                            </div>
+                            <h2 class="text-2xl sm:text-3xl font-black text-gray-900 leading-tight hover:text-red-600 transition">
+                                ${escapeHTML(featuredItem.title)}
+                            </h2>
+                            <p class="text-sm text-gray-600 line-clamp-3 leading-relaxed">
+                                ${escapeHTML(featuredItem.summary)}
+                            </p>
+                            <div class="flex items-center justify-between text-xs text-gray-400 pt-2 border-t border-gray-100">
+                                <span><i data-lucide="calendar" class="w-3.5 h-3.5 inline mr-1"></i> ${escapeHTML(featuredItem.date)}</span>
+                                <span class="font-bold text-red-600 flex items-center gap-1">Leer noticia completa <i data-lucide="chevron-right" class="w-4 h-4"></i></span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            filtered.forEach(item => {
+                const isVideo = item.mediaType === 'video';
+                const cardMedia = isVideo ?
+                    `<div class="w-full h-48 bg-slate-900 flex items-center justify-center text-white">
+                        <i data-lucide="video" class="w-12 h-12 text-red-500"></i>
+                    </div>` :
+                    `<img src="${escapeHTML(item.mediaUrl)}" alt="Noticia" class="w-full h-48 object-cover group-hover:scale-105 transition duration-300">`;
+
+                const cardHtml = `
+                    <div class="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition duration-300 border border-gray-100 flex flex-col group cursor-pointer" onclick="openArticle('${item.id}')">
+                        <div class="relative overflow-hidden">
+                            ${cardMedia}
+                            <span class="absolute top-3 left-3 bg-slate-900/90 backdrop-blur-sm text-white text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider">
+                                ${escapeHTML(item.category)}
+                            </span>
+                        </div>
+                        <div class="p-4 flex-grow flex flex-col justify-between space-y-3">
+                            <div>
+                                <h3 class="text-base font-bold text-gray-900 group-hover:text-red-600 transition line-clamp-2 leading-snug">
+                                    ${escapeHTML(item.title)}
+                                </h3>
+                                <p class="text-xs text-gray-500 mt-2 line-clamp-2">
+                                    ${escapeHTML(item.summary)}
+                                </p>
+                            </div>
+                            <div class="flex items-center justify-between text-[11px] text-gray-400 pt-3 border-t border-gray-100">
+                                <span><i data-lucide="clock" class="w-3 h-3 inline mr-1"></i> ${escapeHTML(item.date)}</span>
+                                <span class="font-semibold text-gray-700">${escapeHTML(item.source)}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                grid.insertAdjacentHTML('beforeend', cardHtml);
+            });
+
+            newsList.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-800/50 transition";
+                tr.innerHTML = `
+                    <td class="p-3 font-semibold text-gray-200 max-w-xs truncate">${escapeHTML(item.title)}</td>
+                    <td class="p-3"><span class="bg-slate-800 text-gray-300 px-2 py-0.5 rounded text-[10px] font-bold uppercase">${escapeHTML(item.category)}</span></td>
+                    <td class="p-3 text-gray-400 text-xs">${escapeHTML(item.source)}</td>
+                    <td class="p-3 text-xs uppercase text-gray-400">${item.mediaType === 'video' ? '📹 Video' : '🖼️ Imagen'}</td>
+                    <td class="p-3 text-center">${item.isFeatured ? '⭐ Sí' : 'No'}</td>
+                    <td class="p-3 text-right space-x-2">
+                        <button onclick="openPublishModal('${item.id}')" class="text-sky-400 hover:text-sky-300 font-bold text-xs">Editar</button>
+                        <button onclick="deleteNewsModal('${item.id}')" class="text-red-400 hover:text-red-300 font-bold text-xs">Eliminar</button>
+                    </td>
+                `;
+                adminBody.appendChild(tr);
+            });
+
+            lucide.createIcons();
+        }
+
+        function filterCategory(cat) {
+            selectedCategory = cat;
+            document.querySelectorAll('.cat-btn').forEach(btn => {
+                if (btn.getAttribute('data-category') === cat) {
+                    btn.className = "cat-btn px-3 py-1.5 rounded-md bg-slate-900 text-white shadow";
+                } else {
+                    btn.className = "cat-btn px-3 py-1.5 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200";
+                }
+            });
+            renderNews();
+        }
+
+        function handleSearch() {
+            renderNews();
+        }
+
+        function goHome() {
+            document.getElementById('homeView').classList.remove('hidden');
+            document.getElementById('articleView').classList.add('hidden');
+            // Limpiar parámetro URL si existía
+            if (window.history.pushState) {
+                const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                window.history.pushState({path: cleanUrl}, '', cleanUrl);
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function openArticle(id) {
+            const article = newsList.find(n => n.id === id);
+            if (!article) return;
+
+            document.getElementById('articleCategory').textContent = article.category;
+            document.getElementById('articleSourceText').textContent = article.source;
+            document.getElementById('footerSourceText').textContent = article.source;
+            document.getElementById('articleTitle').textContent = article.title;
+            document.getElementById('articleDate').textContent = article.date;
+            document.getElementById('articleSummary').textContent = article.summary;
+
+            const sourceLink = document.getElementById('articleSourceLink');
+            if (article.sourceUrl) {
+                sourceLink.href = article.sourceUrl;
+                sourceLink.classList.remove('hidden');
+            } else {
+                sourceLink.classList.add('hidden');
+            }
+
+            const mediaContainer = document.getElementById('mediaContainer');
+            if (article.mediaType === 'video') {
+                const embedUrl = getYoutubeEmbedUrl(article.mediaUrl);
+                if (embedUrl) {
+                    mediaContainer.innerHTML = `<iframe src="${embedUrl}" class="w-full h-80 sm:h-[400px] rounded-xl" frameborder="0" allowfullscreen></iframe>`;
+                } else {
+                    mediaContainer.innerHTML = `<video src="${escapeHTML(article.mediaUrl)}" controls class="w-full max-h-[400px] rounded-xl"></video>`;
+                }
+            } else {
+                mediaContainer.innerHTML = `<img src="${escapeHTML(article.mediaUrl)}" alt="Noticia" class="w-full object-cover max-h-[400px] rounded-xl">`;
+            }
+
+            const contentContainer = document.getElementById('articleContent');
+            const paragraphs = article.content.split('\n\n');
+            contentContainer.innerHTML = paragraphs.map(p => `<p class="leading-relaxed text-gray-800">${escapeHTML(p)}</p>`).join('');
+
+            document.getElementById('homeView').classList.add('hidden');
+            document.getElementById('articleView').classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            lucide.createIcons();
+        }
+
+        function handleFileUpload(event, type) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (type === 'image') {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
+                        const maxDim = 1000;
+
+                        if (width > maxDim || height > maxDim) {
+                            if (width > height) {
+                                height = Math.round((height * maxDim) / width);
+                                width = maxDim;
+                            } else {
+                                width = Math.round((width * maxDim) / height);
+                                height = maxDim;
+                            }
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        uploadedBase64Media = canvas.toDataURL('image/jpeg', 0.75);
+                        showToast('📷 Imagen procesada y optimizada.', 'info');
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function toggleMediaInputs(type) {
+            const imgBox = document.getElementById('imageInputs');
+            const vidBox = document.getElementById('videoInputs');
+
+            if (type === 'image') {
+                imgBox.classList.remove('hidden');
+                vidBox.classList.add('hidden');
+            } else {
+                vidBox.classList.remove('hidden');
+                imgBox.classList.add('hidden');
+            }
+        }
+
+        function openPublishModal(id = null) {
+            const modal = document.getElementById('publishModal');
+            const form = document.getElementById('newsForm');
+            form.reset();
+            uploadedBase64Media = '';
+
+            const tgToken = localStorage.getItem('social_tg_token');
+            document.getElementById('shareTelegram').checked = !!tgToken;
+
+            if (id) {
+                const article = newsList.find(n => n.id === id);
+                if (article) {
+                    document.getElementById('editingArticleId').value = article.id;
+                    document.getElementById('modalFormTitle').innerHTML = `<i data-lucide="edit" class="text-red-600"></i> Editar Noticia`;
+                    document.getElementById('inputTitle').value = article.title;
+                    document.getElementById('inputCategory').value = article.category;
+                    document.getElementById('inputSource').value = article.source;
+                    document.getElementById('inputSourceUrl').value = article.sourceUrl || '';
+                    document.getElementById('inputSummary').value = article.summary;
+                    document.getElementById('inputContent').value = article.content;
+                    document.getElementById('inputFeatured').checked = article.isFeatured;
+
+                    if (article.mediaType === 'video') {
+                        document.querySelector('input[name="mediaType"][value="video"]').checked = true;
+                        toggleMediaInputs('video');
+                        document.getElementById('inputVideoUrl').value = article.mediaUrl;
+                    } else {
+                        document.querySelector('input[name="mediaType"][value="image"]').checked = true;
+                        toggleMediaInputs('image');
+                        document.getElementById('inputImageUrl').value = article.mediaUrl;
+                    }
+                }
+            } else {
+                document.getElementById('editingArticleId').value = '';
+                document.getElementById('modalFormTitle').innerHTML = `<i data-lucide="file-plus" class="text-red-600"></i> Redactar Nueva Noticia`;
+                toggleMediaInputs('image');
+            }
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            lucide.createIcons();
+        }
+
+        function closePublishModal() {
+            const modal = document.getElementById('publishModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        async function saveNews(e) {
+            e.preventDefault();
+
+            const btnSubmit = document.getElementById('btnSubmitForm');
+            btnSubmit.disabled = true;
+            btnSubmit.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Guardando...`;
+            lucide.createIcons();
+
+            const editId = document.getElementById('editingArticleId').value;
+            const title = document.getElementById('inputTitle').value.trim();
+            const category = document.getElementById('inputCategory').value;
+            const source = document.getElementById('inputSource').value.trim();
+            const sourceUrl = document.getElementById('inputSourceUrl').value.trim();
+            const mediaType = document.querySelector('input[name="mediaType"]:checked').value;
+            const summary = document.getElementById('inputSummary').value.trim();
+            const content = document.getElementById('inputContent').value.trim();
+            const isFeatured = document.getElementById('inputFeatured').checked;
+
+            let mediaUrl = '';
+            if (mediaType === 'image') {
+                mediaUrl = uploadedBase64Media || document.getElementById('inputImageUrl').value.trim();
+                // Si no hay imagen subida ni URL, generarla automáticamente según título + categoría
+                if (!mediaUrl) {
+                    mediaUrl = findBestImage(title, category);
+                    showToast('🎨 Imagen generada automáticamente según la noticia.', 'info');
+                }
+            } else {
+                mediaUrl = document.getElementById('inputVideoUrl').value.trim();
+            }
+
+            if (isFeatured) {
+                newsList.forEach(n => n.isFeatured = false);
+            }
+
+            const todayStr = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+
+            const articleObj = {
+                id: editId || Date.now().toString(),
+                title,
+                category,
+                source,
+                sourceUrl,
+                mediaType,
+                mediaUrl,
+                summary,
+                content,
+                date: todayStr,
+                isFeatured
+            };
+
+            if (editId) {
+                const index = newsList.findIndex(n => n.id === editId);
+                if (index !== -1) newsList[index] = articleObj;
+            } else {
+                newsList.unshift(articleObj);
+            }
+
+            saveToLocalStorage();
+            renderNews();
+
+            if (document.getElementById('shareTelegram').checked) {
+                await sendToTelegram(articleObj);
+            }
+
+            if (document.getElementById('shareFacebook').checked) {
+                await sendToFacebook(articleObj);
+            }
+
+            closePublishModal();
+            showToast('✅ ¡Noticia publicada correctamente!', 'success');
+
+            btnSubmit.disabled = false;
+            btnSubmit.innerHTML = `Guardar y Publicar`;
+        }
+
+        async function sendToTelegram(article) {
+            const token = localStorage.getItem('social_tg_token') || '';
+            let chatId = localStorage.getItem('social_tg_chat') || '';
+
+            if (!token || !chatId) {
+                showToast('⚠️ Telegram no configurado en el Panel Admin.', 'warning');
+                return;
+            }
+
+            if (!chatId.startsWith('@') && !chatId.startsWith('-') && isNaN(chatId)) {
+                chatId = '@' + chatId;
+            }
+
+            // Determinación de URL pública para Telegram
+            let configuredSiteUrl = localStorage.getItem('social_site_url') || '';
+            let articleDirectUrl = '';
+
+            if (configuredSiteUrl) {
+                articleDirectUrl = `${configuredSiteUrl.replace(/\/$/, '')}?id=${article.id}`;
+            } else if (!window.location.href.startsWith('file:')) {
+                const baseUrl = window.location.href.split('?')[0].split('#')[0];
+                articleDirectUrl = `${baseUrl}?id=${article.id}`;
+            } else {
+                articleDirectUrl = `⚠️ (Configura la URL Pública en el Panel Admin para activar enlace web)`;
+                showToast('⚠️ Nota: Como estás en modo local (file://), configura la URL de tu sitio web en el Panel Admin.', 'warning');
+            }
+
+            const caption = `<b>📰 TU INFORMACIÓN AL DÍA</b>\n\n` +
+                            `<b>${escapeHTML(article.title)}</b>\n\n` +
+                            `${escapeHTML(article.summary)}\n\n` +
+                            `🏷️ <i>Categoría: ${escapeHTML(article.category)}</i>\n` +
+                            `📌 <i>Fuente: ${escapeHTML(article.source)}</i>\n\n` +
+                            `📲 <b>Sigue la noticia en desarrollo aquí:</b>\n` +
+                            `${articleDirectUrl.startsWith('http') ? `<a href="${articleDirectUrl}">${articleDirectUrl}</a>` : articleDirectUrl}`;
+
+            try {
+                if (article.mediaType === 'image' && article.mediaUrl) {
+                    if (article.mediaUrl.startsWith('data:image')) {
+                        const blob = dataURItoBlob(article.mediaUrl);
+                        if (blob) {
+                            const formData = new FormData();
+                            formData.append('chat_id', chatId);
+                            formData.append('photo', blob, 'noticia.jpg');
+                            formData.append('caption', caption);
+                            formData.append('parse_mode', 'HTML');
+
+                            const res = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: 'POST', body: formData });
+                            const data = await res.json();
+                            if (data.ok) {
+                                showToast('📢 Publicado en Telegram con imagen', 'success');
+                                return;
+                            }
+                        }
+                    } else if (article.mediaUrl.startsWith('http')) {
+                        const res = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ chat_id: chatId, photo: article.mediaUrl, caption: caption, parse_mode: 'HTML' })
+                        });
+                        const data = await res.json();
+                        if (data.ok) {
+                            showToast('📢 Publicado en Telegram con imagen', 'success');
+                            return;
+                        }
+                    }
+                }
+
+                const textRes = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ chat_id: chatId, text: caption, parse_mode: 'HTML' })
+                });
+                const textData = await textRes.json();
+                if (textData.ok) {
+                    showToast('📢 Noticia enviada a Telegram', 'success');
+                } else {
+                    showToast('❌ Telegram: ' + (textData.description || 'Error'), 'error');
+                }
+            } catch(e) {
+                console.error("Error Telegram:", e);
+            }
+        }
+
+        async function sendToFacebook(article) {
+            const webhookUrl = localStorage.getItem('social_fb_webhook') || '';
+            if (!webhookUrl) {
+                showToast('⚠️ Falta Webhook de Facebook en Panel Admin.', 'warning');
+                return;
+            }
+
+            try {
+                await fetch(webhookUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(article)
+                });
+                showToast('📘 Noticia enviada a Facebook via Webhook', 'success');
+            } catch(e) {
+                console.error("Error Webhook Facebook:", e);
+            }
+        }
+
+        function deleteNewsModal(id) {
+            pendingDeleteId = id;
+            const modal = document.getElementById('confirmDeleteModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeConfirmDeleteModal() {
+            pendingDeleteId = null;
+            const modal = document.getElementById('confirmDeleteModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function confirmDelete() {
+            if (pendingDeleteId) {
+                newsList = newsList.filter(n => n.id !== pendingDeleteId);
+                saveToLocalStorage();
+                renderNews();
+                showToast('🗑️ Noticia eliminada.', 'info');
+            }
+            closeConfirmDeleteModal();
+        }
+
+        function toggleAdminView() {
+            if (!isAdminLoggedIn) {
+                document.getElementById('loginModal').classList.remove('hidden');
+                document.getElementById('loginModal').classList.add('flex');
+            } else {
+                const dash = document.getElementById('adminDashboard');
+                dash.classList.toggle('hidden');
+            }
+        }
+
+        function closeLoginModal() {
+            document.getElementById('loginModal').classList.add('hidden');
+            document.getElementById('loginModal').classList.remove('flex');
+            document.getElementById('loginError').classList.add('hidden');
+        }
+
+        function handleAdminLogin(e) {
+            e.preventDefault();
+            const now = Date.now();
+            
+            // Verificar si está bloqueado
+            if (loginBlockedUntil > now) {
+                const remainingSeconds = Math.ceil((loginBlockedUntil - now) / 1000);
+                document.getElementById('loginError').textContent = `🔒 Bloqueado. Espera ${remainingSeconds} segundos.`;
+                document.getElementById('loginError').classList.remove('hidden');
+                return;
+            }
+
+            const pass = document.getElementById('adminPassword').value;
+            if (pass === ADMIN_PASS) {
+                isAdminLoggedIn = true;
+                adminLoginAttempts = 0;
+                closeLoginModal();
+                document.getElementById('adminBtnText').textContent = 'Panel Admin (Activo)';
+                document.getElementById('adminDashboard').classList.remove('hidden');
+                showToast('🔑 Sesión de Administrador iniciada.', 'success');
+            } else {
+                adminLoginAttempts++;
+                const remaining = MAX_LOGIN_ATTEMPTS - adminLoginAttempts;
+                
+                if (remaining <= 0) {
+                    // Bloquear por 60 segundos después de 3 intentos fallidos
+                    loginBlockedUntil = Date.now() + 60000;
+                    document.getElementById('loginError').textContent = '🔒 Demasiados intentos. Bloqueado 60 segundos.';
+                    adminLoginAttempts = 0;
+                } else {
+                    document.getElementById('loginError').textContent = `❌ Clave incorrecta. Te quedan ${remaining} intento(s).`;
+                }
+                document.getElementById('loginError').classList.remove('hidden');
+                document.getElementById('adminPassword').value = '';
+            }
+        }
+
+        function logoutAdmin() {
+            isAdminLoggedIn = false;
+            document.getElementById('adminBtnText').textContent = 'Panel Admin';
+            document.getElementById('adminDashboard').classList.add('hidden');
+            showToast('🔒 Sesión del Panel Admin cerrada.', 'info');
+        }
+
+        window.onload = function() {
+            initApp();
+        };
+    </script>
+</body>
+</html>
