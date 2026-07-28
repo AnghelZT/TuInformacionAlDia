@@ -4,6 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tu Información Al Día - Portal de Noticias</title>
+    <!-- Open Graph Meta Tags para Facebook -->
+    <meta property="og:title" content="Tu Información Al Día - Portal de Noticias">
+    <meta property="og:description" content="Periodismo Independiente y Veraz - Mantente informado con las últimas noticias.">
+    <meta property="og:image" content="https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=1200&q=80">
+    <meta property="og:url" content="https://tuinformacionaldia.onrender.com">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Tu Información Al Día">
+    <meta property="og:locale" content="es_ES">
+    <!-- Twitter Card (para compartir en X/Twitter) -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Tu Información Al Día - Portal de Noticias">
+    <meta name="twitter:description" content="Periodismo Independiente y Veraz - Mantente informado con las últimas noticias.">
+    <meta name="twitter:image" content="https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=1200&q=80">
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons -->
@@ -1320,6 +1333,38 @@ function initApp() {
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
+function updateOpenGraphTags(article) {
+            let siteUrl = localStorage.getItem('social_site_url') || '';
+            let articleUrl = '';
+            if (siteUrl) {
+                articleUrl = `${siteUrl.replace(/\/$/, '')}?id=${article.id}`;
+            } else if (!window.location.href.startsWith('file:')) {
+                const baseUrl = window.location.href.split('?')[0].split('#')[0];
+                articleUrl = `${baseUrl}?id=${article.id}`;
+            } else {
+                articleUrl = `https://tuinformacionaldia.onrender.com?id=${article.id}`;
+            }
+            let imageUrl = article.mediaUrl || '';
+            if (imageUrl.startsWith('data:image')) {
+                imageUrl = findBestImage(article.title, article.category);
+            }
+            document.title = `${article.title} | Tu Informaci\u00f3n Al D\u00eda`;
+            let ogTitle = document.querySelector('meta[property="og:title"]');
+            if (ogTitle) ogTitle.setAttribute('content', article.title);
+            let ogDesc = document.querySelector('meta[property="og:description"]');
+            if (ogDesc) ogDesc.setAttribute('content', article.summary);
+            let ogImage = document.querySelector('meta[property="og:image"]');
+            if (ogImage) ogImage.setAttribute('content', imageUrl);
+            let ogUrl = document.querySelector('meta[property="og:url"]');
+            if (ogUrl) ogUrl.setAttribute('content', articleUrl);
+            let twTitle = document.querySelector('meta[name="twitter:title"]');
+            if (twTitle) twTitle.setAttribute('content', article.title);
+            let twDesc = document.querySelector('meta[name="twitter:description"]');
+            if (twDesc) twDesc.setAttribute('content', article.summary);
+            let twImage = document.querySelector('meta[name="twitter:image"]');
+            if (twImage) twImage.setAttribute('content', imageUrl);
+        }
+
         function openArticle(id) {
             const article = newsList.find(n => n.id === id);
             if (!article) return;
@@ -1353,7 +1398,10 @@ function initApp() {
 
             const contentContainer = document.getElementById('articleContent');
             const paragraphs = article.content.split('\n\n');
-            contentContainer.innerHTML = paragraphs.map(p => `<p class="leading-relaxed text-gray-800">${escapeHTML(p)}</p>`).join('');
+contentContainer.innerHTML = paragraphs.map(p => `<p class="leading-relaxed text-gray-800">${escapeHTML(p)}</p>`).join('');
+
+            // Actualizar Open Graph tags para Facebook
+            updateOpenGraphTags(article);
 
             document.getElementById('homeView').classList.add('hidden');
             document.getElementById('articleView').classList.remove('hidden');
