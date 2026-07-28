@@ -476,22 +476,15 @@
     </footer>
 
 <!-- Lógica de Funcionamiento -->
-    <!-- Firebase SDK (carga asíncrona para no bloquear la página) -->
-    <script async src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
-    <script async src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+    <!-- Supabase SDK -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
     <script>
-        // 🔐 CONFIGURACIÓN FIREBASE (REEMPLAZA CON TUS DATOS)
-        const FIREBASE_CONFIG = {
-            apiKey: "AIzaSyAquiVaTuApiKeyDeFirebase",
-            authDomain: "tu-noticiero.firebaseapp.com",
-            projectId: "tu-noticiero",
-            storageBucket: "tu-noticiero.firebasestorage.app",
-            messagingSenderId: "123456789",
-            appId: "1:123456789:web:abcdef123456"
-        };
-        const SECURE_KEY = "Cl4v3_Sup3r_S3gur4_2026++";
+        // 🔐 CONFIGURACIÓN SUPABASE
+        const SUPABASE_URL = "https://kvqcklxcobkosuhdsibv.supabase.co";
+        const SUPABASE_ANON_KEY = "sb_publishable_mPMI3XL-bS5M4mfzM009gw_xOw4RXEZ";
         const ADMIN_PASS = "Kelys03kg++Aranza..";
+        let supabaseClient = null;
         let isAdminLoggedIn = sessionStorage.getItem('admin_logged_in') === 'true';
         let pendingDeleteId = null;
         let uploadedBase64Media = '';
@@ -500,90 +493,103 @@
         let adminLoginAttempts = 0;
         const MAX_LOGIN_ATTEMPTS = 3;
         let loginBlockedUntil = 0;
-        let db = null;
-        let firebaseInitialized = false;
 
-// 🔥 Inicializar Firebase
-        function initFirebase() {
+        // 🚀 Inicializar Supabase
+        function initSupabase() {
             try {
-                if (!firebaseInitialized && typeof firebase !== 'undefined') {
-                    firebase.initializeApp(FIREBASE_CONFIG);
-                    db = firebase.firestore();
-                    firebaseInitialized = true;
-                    console.log('✅ Firebase conectado');
+                if (typeof supabase !== 'undefined' && !supabaseClient) {
+                    supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                    console.log('✅ Supabase conectado');
                 }
             } catch (e) {
-                console.warn('⚠️ Firebase no disponible, usando localStorage como respaldo:', e.message);
+                console.warn('⚠️ Supabase no disponible, usando localStorage como respaldo:', e.message);
             }
         }
 
-        // 💾 BASE DE DATOS - Operaciones CRUD con Firestore
+        // 💾 BASE DE DATOS - Operaciones CRUD con Supabase
         async function saveNewsToDB(article) {
-            if (!firebaseInitialized || !db) {
-                // Fallback a localStorage
+            if (!supabaseClient) {
                 saveToLocalStorage();
                 return;
             }
             try {
-                const cipher = btoa(JSON.stringify({ data: article, key: SECURE_KEY }));
-                await db.collection('news').doc(article.id).set({
-                    encrypted: cipher,
-                    title: article.title,
-                    category: article.category,
-                    date: article.date,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                console.log('✅ Noticia guardada en la nube');
+                const { error } = await supabaseClient
+                    .from('news')
+                    .upsert({
+                        id: article.id,
+                        title: article.title,
+                        category: article.category,
+                        source: article.source,
+                        source_url: article.sourceUrl || '',
+                        media_type: article.mediaType || 'image',
+                        media_url: article.mediaUrl || '',
+                        summary: article.summary || '',
+                        content: article.content || '',
+                        date: article.date || '',
+                        is_featured: article.isFeatured || false
+                    }, { onConflict: 'id' });
+                
+                if (error) throw error;
+                console.log('✅ Noticia guardada en Supabase');
             } catch(e) {
-                console.warn('⚠️ Error guardando en Firebase, usando localStorage:', e);
+                console.warn('⚠️ Error guardando en Supabase, usando localStorage:', e.message || e);
                 saveToLocalStorage();
             }
         }
 
         async function deleteNewsFromDB(id) {
-            if (!firebaseInitialized || !db) {
-                saveToLocalStorage();
-                return;
-            }
+            if (!supabaseClient) return;
             try {
-                await db.collection('news').doc(id).delete();
-                console.log('✅ Noticia eliminada de la nube');
+                const { error } = await supabaseClient
+                    .from('news')
+                    .delete()
+                    .eq('id', id);
+                
+                if (error) throw error;
+                console.log('✅ Noticia eliminada de Supabase');
             } catch(e) {
-                console.warn('⚠️ Error eliminando de Firebase:', e);
+                console.warn('⚠️ Error eliminando de Supabase:', e.message || e);
             }
         }
 
         async function loadNewsFromDB() {
-            if (!firebaseInitialized || !db) {
-                // Fallback a localStorage
-                const saved = localStorage.getItem('prensa_digital_news');
-                return saved ? JSON.parse(saved) : null;
+            if (!supabaseClient) {
+                return loadFromLocalStorageFallback();
             }
             try {
-                const snapshot = await db.collection('news')
-                    .orderBy('timestamp', 'desc')
-                    .get();
+                const { data, error } = await supabaseClient
+                    .from('news')
+                    .select('*')
+                    .order('created_at', { ascending: false });
                 
-                if (snapshot.empty) return null;
+                if (error) throw error;
                 
-                const loaded = [];
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    try {
-                        const decrypted = JSON.parse(atob(data.encrypted));
-                        if (decrypted.key === SECURE_KEY) {
-                            loaded.push(decrypted.data);
-                        }
-                    } catch(e) {
-                        console.warn('Error desencriptando:', e);
-                    }
-                });
-                return loaded.length > 0 ? loaded : null;
+                if (data && data.length > 0) {
+                    // Mapear de columnas Supabase al formato del frontend
+                    return data.map(item => ({
+                        id: item.id,
+                        title: item.title,
+                        category: item.category,
+                        source: item.source,
+                        sourceUrl: item.source_url || '',
+                        mediaType: item.media_type || 'image',
+                        mediaUrl: item.media_url || '',
+                        summary: item.summary || '',
+                        content: item.content || '',
+                        date: item.date || '',
+                        isFeatured: item.is_featured || false
+                    }));
+                }
+                return null;
             } catch(e) {
-                console.warn('⚠️ Error cargando de Firebase, usando localStorage:', e);
-                const saved = localStorage.getItem('prensa_digital_news');
-                return saved ? JSON.parse(saved) : null;
+                console.warn('⚠️ Error cargando de Supabase, usando localStorage:', e.message || e);
+                return loadFromLocalStorageFallback();
             }
+        }
+        
+        function loadFromLocalStorageFallback() {
+            const saved = localStorage.getItem('prensa_digital_news');
+            return saved ? JSON.parse(saved) : null;
         }
 
         // 🛡️ Auditoría de seguridad en el Panel Admin
@@ -942,23 +948,41 @@
         }
 
 function initApp() {
-            // Inicializar Firebase (en segundo plano, sin bloquear)
-            initFirebase();
+            // Inicializar Supabase
+            initSupabase();
             
-            // ⚡ CARGAR DESDE LOCALSTORAGE INMEDIATAMENTE (sin esperar Firebase)
+            // ⚡ Cargar datos: PRIMERO Supabase (nube), LUEGO fallback a localStorage
+            loadNewsFromDB().then(cloudData => {
+                if (cloudData && cloudData.length > 0) {
+                    newsList = cloudData;
+                    saveToLocalStorage(); // Sincronizar localStorage con la nube
+                } else {
+                    // No hay datos en la nube, intentar localStorage
+                    loadFromLocalStorage();
+                }
+                finalizeInit();
+            }).catch(() => {
+                // Supabase falló, cargar de localStorage
+                loadFromLocalStorage();
+                finalizeInit();
+            });
+        }
+        
+        function loadFromLocalStorage() {
             const saved = localStorage.getItem('prensa_digital_news');
             if (saved) {
                 try {
                     newsList = JSON.parse(saved);
                 } catch(e) {
-                    newsList = defaultNews;
+                    newsList = JSON.parse(JSON.stringify(defaultNews));
                 }
             } else {
-                newsList = defaultNews;
+                newsList = JSON.parse(JSON.stringify(defaultNews));
                 saveToLocalStorage();
             }
-            
-            // Renderizar al instante
+        }
+        
+        function finalizeInit() {
             loadSocialSettings();
             renderNews();
             
@@ -972,22 +996,10 @@ function initApp() {
             const urlParams = new URLSearchParams(window.location.search);
             const articleId = urlParams.get('id');
             if (articleId) {
-                openArticle(articleId);
+                // Pequeña espera para que renderNews termine
+                setTimeout(() => openArticle(articleId), 100);
             }
             lucide.createIcons();
-            
-            // ⏳ En segundo plano, intentar sincronizar con Firebase (sin demorar la carga)
-            if (firebaseInitialized && db) {
-                loadNewsFromDB().then(cloudData => {
-                    if (cloudData && cloudData.length > 0) {
-                        newsList = cloudData;
-                        renderNews();
-                        saveToLocalStorage();
-                    }
-                }).catch(() => {
-                    // Firebase no disponible, ya tenemos localStorage
-                });
-            }
         }
 
         function saveToLocalStorage() {
