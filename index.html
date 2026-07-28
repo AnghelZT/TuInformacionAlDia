@@ -1435,8 +1435,13 @@ function openPublishModal(id = null) {
             form.reset();
             uploadedBase64Media = '';
 
+            // Auto-chequear Telegram si está configurado
             const tgToken = localStorage.getItem('social_tg_token');
             document.getElementById('shareTelegram').checked = !!tgToken;
+            
+            // Auto-chequear Facebook si el Webhook está configurado
+            const fbWebhook = localStorage.getItem('social_fb_webhook');
+            document.getElementById('shareFacebook').checked = !!fbWebhook;
 
             if (id) {
                 const article = newsList.find(n => n.id === id);
@@ -1684,28 +1689,55 @@ if (editId) {
                 mediaType: article.mediaType
             };
 
+            console.log('📘 Enviando a Facebook/Make Webhook...');
+            console.log('URL:', webhookUrl);
+            console.log('Payload:', JSON.stringify(payload, null, 2));
+
             try {
                 const res = await fetch(webhookUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    mode: 'cors', // Intentar con CORS normal
                     body: JSON.stringify(payload)
                 });
                 
                 // Intentar leer respuesta para verificar éxito
                 let responseData = null;
+                let responseText = '';
                 try {
                     responseData = await res.json();
-                } catch(e) {}
+                    responseText = JSON.stringify(responseData);
+                } catch(e) {
+                    try {
+                        responseText = await res.text();
+                    } catch(e2) {}
+                }
                 
                 if (res.ok) {
-                    showToast('📘 Noticia enviada a Facebook vía Make/Webhook correctamente. Con enlace directo: ' + articleDirectUrl, 'success');
+                    showToast('📘 Noticia enviada a Facebook vía Make/Webhook correctamente. Enlace: ' + articleDirectUrl, 'success');
+                    console.log('✅ Webhook OK:', res.status, responseText);
                 } else {
-                    showToast('⚠️ Webhook respondió con código ' + res.status + '. Verifica la configuración en Make.', 'warning');
-                    console.warn('Facebook Webhook response:', res.status, responseData);
+                    showToast('⚠️ Webhook respondió con código ' + res.status + '. Verifica Make.', 'warning');
+                    console.warn('❌ Webhook error:', res.status, responseText);
                 }
             } catch(e) {
-                console.error("Error Webhook Facebook:", e);
-                showToast('❌ Error de conexión con el Webhook de Facebook. Revisa la URL.', 'error');
+                console.error("Error primario Webhook Facebook:", e);
+                
+                // Fallback: intentar con no-cors (envío ciego, pero puede funcionar si Make acepta)
+                try {
+                    showToast('⚠️ Intentando envío alternativo (no-cors) al Webhook...', 'warning');
+                    const fallbackRes = await fetch(webhookUrl, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    console.log('📘 Fallback no-cors enviado. Make debería recibirlo si está bien configurado.');
+                    showToast('📘 Envío realizado (modo no-cors). Verifica en Make/Facebook si llegó.', 'success');
+                } catch(e2) {
+                    console.error("Error también en fallback:", e2);
+                    showToast('❌ Error de conexión con el Webhook de Facebook: ' + e.message, 'error');
+                }
             }
         }
 
