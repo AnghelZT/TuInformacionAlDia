@@ -929,57 +929,46 @@
         }
 
 function initApp() {
-            // Inicializar Firebase
+            // Inicializar Firebase (en segundo plano, sin bloquear)
             initFirebase();
             
-            // Cargar datos (desde Firebase o localStorage)
-            loadNewsFromDB().then(cloudData => {
-                if (cloudData && cloudData.length > 0) {
-                    newsList = cloudData;
-                } else {
-                    const saved = localStorage.getItem('prensa_digital_news');
-                    if (saved) {
-                        try {
-                            newsList = JSON.parse(saved);
-                        } catch(e) {
-                            newsList = defaultNews;
-                        }
-                    } else {
-                        newsList = defaultNews;
+            // ⚡ CARGAR DESDE LOCALSTORAGE INMEDIATAMENTE (sin esperar Firebase)
+            const saved = localStorage.getItem('prensa_digital_news');
+            if (saved) {
+                try {
+                    newsList = JSON.parse(saved);
+                } catch(e) {
+                    newsList = defaultNews;
+                }
+            } else {
+                newsList = defaultNews;
+                saveToLocalStorage();
+            }
+            
+            // Renderizar al instante
+            loadSocialSettings();
+            renderNews();
+            
+            // Detectar enlace directo ?id=xxx
+            const urlParams = new URLSearchParams(window.location.search);
+            const articleId = urlParams.get('id');
+            if (articleId) {
+                openArticle(articleId);
+            }
+            lucide.createIcons();
+            
+            // ⏳ En segundo plano, intentar sincronizar con Firebase (sin demorar la carga)
+            if (firebaseInitialized && db) {
+                loadNewsFromDB().then(cloudData => {
+                    if (cloudData && cloudData.length > 0) {
+                        newsList = cloudData;
+                        renderNews();
                         saveToLocalStorage();
                     }
-                }
-                loadSocialSettings();
-                renderNews();
-                // Detección de Parámetros URL para Enlace Directo (?id=xxx)
-                const urlParams = new URLSearchParams(window.location.search);
-                const articleId = urlParams.get('id');
-                if (articleId) {
-                    openArticle(articleId);
-                }
-                lucide.createIcons();
-            }).catch(() => {
-                // Fallback
-                const saved = localStorage.getItem('prensa_digital_news');
-                if (saved) {
-                    try {
-                        newsList = JSON.parse(saved);
-                    } catch(e) {
-                        newsList = defaultNews;
-                    }
-                } else {
-                    newsList = defaultNews;
-                    saveToLocalStorage();
-                }
-                loadSocialSettings();
-                renderNews();
-                const urlParams = new URLSearchParams(window.location.search);
-                const articleId = urlParams.get('id');
-                if (articleId) {
-                    openArticle(articleId);
-                }
-                lucide.createIcons();
-            });
+                }).catch(() => {
+                    // Firebase no disponible, ya tenemos localStorage
+                });
+            }
         }
 
         function saveToLocalStorage() {
@@ -1661,83 +1650,44 @@ if (editId) {
                 articleDirectUrl = `${baseUrl}?id=${article.id}`;
             } else {
                 showToast('⚠️ Configura la URL Pública en el Panel Admin para que Facebook pueda enlazar la noticia.', 'warning');
-                articleDirectUrl = `https://tusitio.netlify.app?id=${article.id}`; // Placeholder informativo
+                articleDirectUrl = `https://tusitio.netlify.app?id=${article.id}`;
             }
 
-            // Determinar la mejor URL de imagen (convertir base64 a algo útil si es necesario)
+            // Determinar la mejor URL de imagen
             let imageUrl = article.mediaUrl || '';
             if (imageUrl.startsWith('data:image')) {
-                // Si es base64, no podemos enviarla directamente a Facebook.
-                // Buscamos una imagen de respaldo según categoría
                 imageUrl = findBestImage(article.title, article.category);
-                showToast('⚠️ La imagen local no puede publicarse en Facebook. Se usó una imagen genérica de respaldo.', 'warning');
             }
 
-            // Payload estructurado para Make.com / Webhook Facebook
+            // Payload MÍNIMO para Make - solo lo esencial
             const payload = {
-                // Campos para que Make.com construya la publicación en Facebook
                 title: article.title,
-                description: article.summary,
+                description: article.summary || article.title,
                 imageUrl: imageUrl,
                 articleUrl: articleDirectUrl,
                 category: article.category,
                 source: article.source,
                 date: article.date,
-                // Datos originales completos por si Make necesita más contexto
-                id: article.id,
-                content: article.content,
-                mediaType: article.mediaType
+                id: article.id
             };
 
-            console.log('📘 Enviando a Facebook/Make Webhook...');
-            console.log('URL:', webhookUrl);
-            console.log('Payload:', JSON.stringify(payload, null, 2));
+            console.log('📘 Enviando a Facebook/Make:', webhookUrl);
 
             try {
-                const res = await fetch(webhookUrl, {
+                // Usar no-cors directamente (Make no soporta CORS preflight)
+                await fetch(webhookUrl, {
                     method: 'POST',
+                    mode: 'no-cors',
                     headers: { 'Content-Type': 'application/json' },
-                    mode: 'cors', // Intentar con CORS normal
                     body: JSON.stringify(payload)
                 });
                 
-                // Intentar leer respuesta para verificar éxito
-                let responseData = null;
-                let responseText = '';
-                try {
-                    responseData = await res.json();
-                    responseText = JSON.stringify(responseData);
-                } catch(e) {
-                    try {
-                        responseText = await res.text();
-                    } catch(e2) {}
-                }
+                // Con no-cors NO podemos leer la respuesta, pero el envío se hizo
+                showToast('📘 Noticia enviada a Make. Revisa Facebook para confirmar.', 'success');
                 
-                if (res.ok) {
-                    showToast('📘 Noticia enviada a Facebook vía Make/Webhook correctamente. Enlace: ' + articleDirectUrl, 'success');
-                    console.log('✅ Webhook OK:', res.status, responseText);
-                } else {
-                    showToast('⚠️ Webhook respondió con código ' + res.status + '. Verifica Make.', 'warning');
-                    console.warn('❌ Webhook error:', res.status, responseText);
-                }
             } catch(e) {
-                console.error("Error primario Webhook Facebook:", e);
-                
-                // Fallback: intentar con no-cors (envío ciego, pero puede funcionar si Make acepta)
-                try {
-                    showToast('⚠️ Intentando envío alternativo (no-cors) al Webhook...', 'warning');
-                    const fallbackRes = await fetch(webhookUrl, {
-                        method: 'POST',
-                        mode: 'no-cors',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-                    console.log('📘 Fallback no-cors enviado. Make debería recibirlo si está bien configurado.');
-                    showToast('📘 Envío realizado (modo no-cors). Verifica en Make/Facebook si llegó.', 'success');
-                } catch(e2) {
-                    console.error("Error también en fallback:", e2);
-                    showToast('❌ Error de conexión con el Webhook de Facebook: ' + e.message, 'error');
-                }
+                console.error("Error Webhook Facebook:", e);
+                showToast('❌ Error al enviar a Facebook: ' + e.message, 'error');
             }
         }
 
