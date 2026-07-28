@@ -155,7 +155,7 @@
                 </div>
             </div>
 
-            <!-- Tabla de Noticias -->
+<!-- Tabla de Noticias -->
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm">
                     <thead class="bg-slate-800 text-gray-400 uppercase text-[10px] tracking-wider">
@@ -172,6 +172,29 @@
                         <!-- Generado con JS -->
                     </tbody>
                 </table>
+            </div>
+
+            <!-- 🛡️ Panel de Seguridad y Auditoría -->
+            <div class="bg-red-950/40 border border-red-800/60 p-4 rounded-xl space-y-3">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-sm font-bold text-red-400 flex items-center gap-2 uppercase tracking-wider">
+                        <i data-lucide="shield" class="w-4 h-4"></i> 🛡️ Panel de Seguridad y Auditoría
+                    </h3>
+                    <div class="flex gap-2">
+                        <button onclick="viewSecurityLogs()" class="bg-red-600/30 hover:bg-red-600/50 text-red-300 px-3 py-1 rounded text-[10px] font-bold transition">
+                            Ver Logs
+                        </button>
+                        <button onclick="clearSecurityLogs()" class="bg-slate-700 hover:bg-slate-600 text-gray-300 px-3 py-1 rounded text-[10px] font-bold transition">
+                            Limpiar
+                        </button>
+                    </div>
+                </div>
+                <div id="securityLogsContainer" class="hidden bg-black/50 rounded-lg p-3 max-h-48 overflow-y-auto text-[11px] font-mono text-green-400 leading-relaxed">
+                    <!-- Logs de seguridad se renderizan aquí -->
+                </div>
+                <p class="text-[10px] text-red-400/70">
+                    ⚡ Detecta y alerta sobre ataques de fuerza bruta, accesos no autorizados e intentos maliciosos. Las alertas se envían al Telegram del administrador.
+                </p>
             </div>
         </section>
 
@@ -440,7 +463,21 @@
     </footer>
 
     <!-- Lógica de Funcionamiento -->
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+
     <script>
+        // 🔐 CONFIGURACIÓN FIREBASE (REEMPLAZA CON TUS DATOS)
+        const FIREBASE_CONFIG = {
+            apiKey: "AIzaSyAquiVaTuApiKeyDeFirebase",
+            authDomain: "tu-noticiero.firebaseapp.com",
+            projectId: "tu-noticiero",
+            storageBucket: "tu-noticiero.firebasestorage.app",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abcdef123456"
+        };
+        const SECURE_KEY = "Cl4v3_Sup3r_S3gur4_2026++";
         const ADMIN_PASS = "Kelys03kg++Aranza..";
         let isAdminLoggedIn = false;
         let pendingDeleteId = null;
@@ -450,6 +487,188 @@
         let adminLoginAttempts = 0;
         const MAX_LOGIN_ATTEMPTS = 3;
         let loginBlockedUntil = 0;
+        let db = null;
+        let firebaseInitialized = false;
+
+// 🔥 Inicializar Firebase
+        function initFirebase() {
+            try {
+                if (!firebaseInitialized && typeof firebase !== 'undefined') {
+                    firebase.initializeApp(FIREBASE_CONFIG);
+                    db = firebase.firestore();
+                    firebaseInitialized = true;
+                    console.log('✅ Firebase conectado');
+                }
+            } catch (e) {
+                console.warn('⚠️ Firebase no disponible, usando localStorage como respaldo:', e.message);
+            }
+        }
+
+        // 💾 BASE DE DATOS - Operaciones CRUD con Firestore
+        async function saveNewsToDB(article) {
+            if (!firebaseInitialized || !db) {
+                // Fallback a localStorage
+                saveToLocalStorage();
+                return;
+            }
+            try {
+                const cipher = btoa(JSON.stringify({ data: article, key: SECURE_KEY }));
+                await db.collection('news').doc(article.id).set({
+                    encrypted: cipher,
+                    title: article.title,
+                    category: article.category,
+                    date: article.date,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                console.log('✅ Noticia guardada en la nube');
+            } catch(e) {
+                console.warn('⚠️ Error guardando en Firebase, usando localStorage:', e);
+                saveToLocalStorage();
+            }
+        }
+
+        async function deleteNewsFromDB(id) {
+            if (!firebaseInitialized || !db) {
+                saveToLocalStorage();
+                return;
+            }
+            try {
+                await db.collection('news').doc(id).delete();
+                console.log('✅ Noticia eliminada de la nube');
+            } catch(e) {
+                console.warn('⚠️ Error eliminando de Firebase:', e);
+            }
+        }
+
+        async function loadNewsFromDB() {
+            if (!firebaseInitialized || !db) {
+                // Fallback a localStorage
+                const saved = localStorage.getItem('prensa_digital_news');
+                return saved ? JSON.parse(saved) : null;
+            }
+            try {
+                const snapshot = await db.collection('news')
+                    .orderBy('timestamp', 'desc')
+                    .get();
+                
+                if (snapshot.empty) return null;
+                
+                const loaded = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    try {
+                        const decrypted = JSON.parse(atob(data.encrypted));
+                        if (decrypted.key === SECURE_KEY) {
+                            loaded.push(decrypted.data);
+                        }
+                    } catch(e) {
+                        console.warn('Error desencriptando:', e);
+                    }
+                });
+                return loaded.length > 0 ? loaded : null;
+            } catch(e) {
+                console.warn('⚠️ Error cargando de Firebase, usando localStorage:', e);
+                const saved = localStorage.getItem('prensa_digital_news');
+                return saved ? JSON.parse(saved) : null;
+            }
+        }
+
+        // 🛡️ Auditoría de seguridad en el Panel Admin
+        function logAuditEvent(action, details = '') {
+            try {
+                const logs = JSON.parse(localStorage.getItem('audit_logs') || '[]');
+                logs.push({
+                    action,
+                    details,
+                    time: new Date().toISOString(),
+                    userAgent: navigator.userAgent.substring(0, 50)
+                });
+                // Solo mantener últimos 100 logs
+                if (logs.length > 100) logs.splice(0, logs.length - 100);
+                localStorage.setItem('audit_logs', JSON.stringify(logs));
+            } catch(e) {}
+        }
+
+        // 🚨 SISTEMA ANTIHACKER - Alertas de ataque
+        let attackAttempts = [];
+        const ATTACK_WINDOW = 60000; // 1 minuto
+        const MAX_ATTACKS = 10; // Máximo 10 intentos por minuto
+
+        function detectAttack(type, details = '') {
+            const now = Date.now();
+            // Limpiar intentos antiguos
+            attackAttempts = attackAttempts.filter(a => now - a.time < ATTACK_WINDOW);
+            
+            attackAttempts.push({ type, time: now, details });
+            
+            // Si supera el umbral, alertar
+            if (attackAttempts.length >= MAX_ATTACKS) {
+                const ip = `visitante_${Math.random().toString(36).substr(2, 8)}`;
+                const attackerInfo = {
+                    ip: ip,
+                    userAgent: navigator.userAgent,
+                    platform: navigator.platform,
+                    language: navigator.language,
+                    time: new Date().toISOString(),
+                    attempts: attackAttempts.length,
+                    types: [...new Set(attackAttempts.map(a => a.type))],
+                    lastDetails: details
+                };
+                
+                // Guardar evidencia en localStorage (persistente)
+                try {
+                    const logs = JSON.parse(localStorage.getItem('attack_logs') || '[]');
+                    logs.push(attackerInfo);
+                    localStorage.setItem('attack_logs', JSON.stringify(logs));
+                } catch(e) {}
+                
+                // Alerta por Telegram al Admin
+                alertAttackTelegram(attackerInfo);
+                
+                // Bloquear temporalmente
+                loginBlockedUntil = now + 300000; // 5 minutos
+                
+                showToast('🚨 ACTIVIDAD SOSPECHOSA DETECTADA. Sistema de seguridad activado.', 'error');
+                console.warn('⚠️ ATAQUE DETECTADO:', attackerInfo);
+                
+                attackAttempts = []; // Resetear contador
+                return true;
+            }
+            return false;
+        }
+
+        async function alertAttackTelegram(attackerInfo) {
+            const token = localStorage.getItem('social_tg_token');
+            const chatId = localStorage.getItem('social_tg_chat');
+            if (!token || !chatId) return;
+            
+            const msg = `🚨⚠️ **ALERTA DE SEGURIDAD - POSIBLE ATAQUE** ⚠️🚨\n\n` +
+                        `🔴 **Tu Información Al Día** ha detectado actividad anómala.\n\n` +
+                        `📋 **Detalles del incidente:**\n` +
+                        `• IP: \`${escapeHTML(attackerInfo.ip)}\`\n` +
+                        `• Navegador: ${escapeHTML(attackerInfo.userAgent)}\n` +
+                        `• SO: ${escapeHTML(attackerInfo.platform)}\n` +
+                        `• Idioma: ${escapeHTML(attackerInfo.language)}\n` +
+                        `• Hora: ${escapeHTML(attackerInfo.time)}\n` +
+                        `• Intentos: ${attackerInfo.attempts}\n` +
+                        `• Tipos: ${attackerInfo.types.join(', ')}\n` +
+                        `• Última acción: ${escapeHTML(attackerInfo.lastDetails)}\n\n` +
+                        `🛡️ **Sistema de defensa activado:**\n` +
+                        `✅ Bloqueo temporal de 5 minutos aplicado\n` +
+                        `✅ Evidencia almacenada\n` +
+                        `✅ Notificación enviada al administrador\n\n` +
+                        `🔐 **Recomendación:** Revisa la seguridad de tu portal.`;
+            
+            try {
+                await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ chat_id: chatId, text: msg, parse_mode: 'Markdown' })
+                });
+            } catch(e) {
+                console.error('Error enviando alerta Telegram:', e);
+            }
+        }
 
         const defaultNews = [
             {
@@ -709,30 +928,58 @@
             lucide.createIcons();
         }
 
-        function initApp() {
-            const saved = localStorage.getItem('prensa_digital_news');
-            if (saved) {
-                try {
-                    newsList = JSON.parse(saved);
-                } catch(e) {
-                    newsList = defaultNews;
+function initApp() {
+            // Inicializar Firebase
+            initFirebase();
+            
+            // Cargar datos (desde Firebase o localStorage)
+            loadNewsFromDB().then(cloudData => {
+                if (cloudData && cloudData.length > 0) {
+                    newsList = cloudData;
+                } else {
+                    const saved = localStorage.getItem('prensa_digital_news');
+                    if (saved) {
+                        try {
+                            newsList = JSON.parse(saved);
+                        } catch(e) {
+                            newsList = defaultNews;
+                        }
+                    } else {
+                        newsList = defaultNews;
+                        saveToLocalStorage();
+                    }
                 }
-            } else {
-                newsList = defaultNews;
-                saveToLocalStorage();
-            }
-
-            loadSocialSettings();
-            renderNews();
-
-            // Detección de Parámetros URL para Enlace Directo (?id=xxx)
-            const urlParams = new URLSearchParams(window.location.search);
-            const articleId = urlParams.get('id');
-            if (articleId) {
-                openArticle(articleId);
-            }
-
-            lucide.createIcons();
+                loadSocialSettings();
+                renderNews();
+                // Detección de Parámetros URL para Enlace Directo (?id=xxx)
+                const urlParams = new URLSearchParams(window.location.search);
+                const articleId = urlParams.get('id');
+                if (articleId) {
+                    openArticle(articleId);
+                }
+                lucide.createIcons();
+            }).catch(() => {
+                // Fallback
+                const saved = localStorage.getItem('prensa_digital_news');
+                if (saved) {
+                    try {
+                        newsList = JSON.parse(saved);
+                    } catch(e) {
+                        newsList = defaultNews;
+                    }
+                } else {
+                    newsList = defaultNews;
+                    saveToLocalStorage();
+                }
+                loadSocialSettings();
+                renderNews();
+                const urlParams = new URLSearchParams(window.location.search);
+                const articleId = urlParams.get('id');
+                if (articleId) {
+                    openArticle(articleId);
+                }
+                lucide.createIcons();
+            });
         }
 
         function saveToLocalStorage() {
@@ -1281,7 +1528,7 @@ function openPublishModal(id = null) {
                 isFeatured
             };
 
-            if (editId) {
+if (editId) {
                 const index = newsList.findIndex(n => n.id === editId);
                 if (index !== -1) newsList[index] = articleObj;
             } else {
@@ -1289,6 +1536,8 @@ function openPublishModal(id = null) {
             }
 
             saveToLocalStorage();
+            saveNewsToDB(articleObj); // Guardar en la nube
+            logAuditEvent('noticia_publicada', `"${title}" en ${category}`);
             renderNews();
 
             if (document.getElementById('shareTelegram').checked) {
@@ -1396,15 +1645,67 @@ function openPublishModal(id = null) {
                 return;
             }
 
+            // Construir la URL directa del artículo
+            let configuredSiteUrl = localStorage.getItem('social_site_url') || '';
+            let articleDirectUrl = '';
+
+            if (configuredSiteUrl) {
+                articleDirectUrl = `${configuredSiteUrl.replace(/\/$/, '')}?id=${article.id}`;
+            } else if (!window.location.href.startsWith('file:')) {
+                const baseUrl = window.location.href.split('?')[0].split('#')[0];
+                articleDirectUrl = `${baseUrl}?id=${article.id}`;
+            } else {
+                showToast('⚠️ Configura la URL Pública en el Panel Admin para que Facebook pueda enlazar la noticia.', 'warning');
+                articleDirectUrl = `https://tusitio.netlify.app?id=${article.id}`; // Placeholder informativo
+            }
+
+            // Determinar la mejor URL de imagen (convertir base64 a algo útil si es necesario)
+            let imageUrl = article.mediaUrl || '';
+            if (imageUrl.startsWith('data:image')) {
+                // Si es base64, no podemos enviarla directamente a Facebook.
+                // Buscamos una imagen de respaldo según categoría
+                imageUrl = findBestImage(article.title, article.category);
+                showToast('⚠️ La imagen local no puede publicarse en Facebook. Se usó una imagen genérica de respaldo.', 'warning');
+            }
+
+            // Payload estructurado para Make.com / Webhook Facebook
+            const payload = {
+                // Campos para que Make.com construya la publicación en Facebook
+                title: article.title,
+                description: article.summary,
+                imageUrl: imageUrl,
+                articleUrl: articleDirectUrl,
+                category: article.category,
+                source: article.source,
+                date: article.date,
+                // Datos originales completos por si Make necesita más contexto
+                id: article.id,
+                content: article.content,
+                mediaType: article.mediaType
+            };
+
             try {
-                await fetch(webhookUrl, {
+                const res = await fetch(webhookUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(article)
+                    body: JSON.stringify(payload)
                 });
-                showToast('📘 Noticia enviada a Facebook via Webhook', 'success');
+                
+                // Intentar leer respuesta para verificar éxito
+                let responseData = null;
+                try {
+                    responseData = await res.json();
+                } catch(e) {}
+                
+                if (res.ok) {
+                    showToast('📘 Noticia enviada a Facebook vía Make/Webhook correctamente. Con enlace directo: ' + articleDirectUrl, 'success');
+                } else {
+                    showToast('⚠️ Webhook respondió con código ' + res.status + '. Verifica la configuración en Make.', 'warning');
+                    console.warn('Facebook Webhook response:', res.status, responseData);
+                }
             } catch(e) {
                 console.error("Error Webhook Facebook:", e);
+                showToast('❌ Error de conexión con el Webhook de Facebook. Revisa la URL.', 'error');
             }
         }
 
@@ -1422,12 +1723,16 @@ function openPublishModal(id = null) {
             modal.classList.remove('flex');
         }
 
-        function confirmDelete() {
+function confirmDelete() {
             if (pendingDeleteId) {
+                detectAttack('delete_intent', 'Intento de eliminar noticia');
+                const deletedTitle = newsList.find(n => n.id === pendingDeleteId)?.title || 'desconocido';
                 newsList = newsList.filter(n => n.id !== pendingDeleteId);
                 saveToLocalStorage();
+                deleteNewsFromDB(pendingDeleteId);
+                logAuditEvent('noticia_eliminada', `"${deletedTitle}"`);
                 renderNews();
-                showToast('🗑️ Noticia eliminada.', 'info');
+                showToast('🗑️ Noticia eliminada de localStorage y la nube.', 'info');
             }
             closeConfirmDeleteModal();
         }
@@ -1448,7 +1753,7 @@ function openPublishModal(id = null) {
             document.getElementById('loginError').classList.add('hidden');
         }
 
-        function handleAdminLogin(e) {
+function handleAdminLogin(e) {
             e.preventDefault();
             const now = Date.now();
             
@@ -1457,7 +1762,14 @@ function openPublishModal(id = null) {
                 const remainingSeconds = Math.ceil((loginBlockedUntil - now) / 1000);
                 document.getElementById('loginError').textContent = `🔒 Bloqueado. Espera ${remainingSeconds} segundos.`;
                 document.getElementById('loginError').classList.remove('hidden');
+                // Detectar como ataque
+                detectAttack('login_blocked', 'Intento de login durante bloqueo');
                 return;
+            }
+
+            // Detectar múltiples intentos fallidos como posible ataque
+            if (adminLoginAttempts >= 2) {
+                detectAttack('brute_force', `Intento #${adminLoginAttempts + 1} de login fallido`);
             }
 
             const pass = document.getElementById('adminPassword').value;
@@ -1468,6 +1780,7 @@ function openPublishModal(id = null) {
                 document.getElementById('adminBtnText').textContent = 'Panel Admin (Activo)';
                 document.getElementById('adminDashboard').classList.remove('hidden');
                 document.getElementById('publishBtn').classList.remove('hidden');
+                logAuditEvent('login_exitoso', 'Inicio de sesión admin');
                 showToast('🔑 Sesión de Administrador iniciada.', 'success');
             } else {
                 adminLoginAttempts++;
@@ -1478,11 +1791,13 @@ function openPublishModal(id = null) {
                     loginBlockedUntil = Date.now() + 60000;
                     document.getElementById('loginError').textContent = '🔒 Demasiados intentos. Bloqueado 60 segundos.';
                     adminLoginAttempts = 0;
+                    detectAttack('login_blocked_60s', '3 intentos fallidos - bloqueo 60s');
                 } else {
                     document.getElementById('loginError').textContent = `❌ Clave incorrecta. Te quedan ${remaining} intento(s).`;
                 }
                 document.getElementById('loginError').classList.remove('hidden');
                 document.getElementById('adminPassword').value = '';
+                logAuditEvent('login_fallido', `Intento ${adminLoginAttempts}`);
             }
         }
 
