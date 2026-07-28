@@ -1659,34 +1659,64 @@ if (editId) {
                 imageUrl = findBestImage(article.title, article.category);
             }
 
-            // Payload MÍNIMO para Make - solo lo esencial
-            const payload = {
-                title: article.title,
-                description: article.summary || article.title,
-                imageUrl: imageUrl,
-                articleUrl: articleDirectUrl,
-                category: article.category,
-                source: article.source,
-                date: article.date,
-                id: article.id
-            };
-
-            console.log('📘 Enviando a Facebook/Make:', webhookUrl);
+            console.log('📘 Enviando a Facebook/Make via Form POST:', webhookUrl);
 
             try {
-                // Usar no-cors directamente (Make no soporta CORS preflight)
-                await fetch(webhookUrl, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                // ✅ FORMA CORRECTA: Usar un formulario HTML oculto.
+                // Los formularios NO tienen restricciones CORS y Make recibe los datos como campos individuales.
+                // Así Make ve directamente: title, description, imageUrl, articleUrl, etc.
+                
+                // Crear un iframe oculto como destino para no salir de la página
+                const frameId = 'make-frame-' + Date.now();
+                const iframe = document.createElement('iframe');
+                iframe.name = frameId;
+                iframe.style.display = 'none';
+                document.body.appendChild(iframe);
+                
+                // Crear el formulario
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = webhookUrl;
+                form.target = frameId;
+                form.style.display = 'none';
+                form.setAttribute('accept-charset', 'UTF-8');
+                
+                // Agregar cada campo como un input hidden
+                const fields = {
+                    title: article.title,
+                    description: article.summary || article.title,
+                    imageUrl: imageUrl,
+                    articleUrl: articleDirectUrl,
+                    category: article.category,
+                    source: article.source,
+                    date: article.date,
+                    id: article.id
+                };
+                
+                Object.keys(fields).forEach(key => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = key;
+                    input.value = fields[key] || '';
+                    form.appendChild(input);
                 });
                 
-                // Con no-cors NO podemos leer la respuesta, pero el envío se hizo
-                showToast('📘 Noticia enviada a Make. Revisa Facebook para confirmar.', 'success');
+                document.body.appendChild(form);
+                
+                // Enviar el formulario
+                form.submit();
+                
+                // Mostrar éxito
+                showToast('📘 Noticia enviada a Make.com correctamente. Revisa Facebook en unos segundos.', 'success');
+                
+                // Limpiar el DOM después de unos segundos
+                setTimeout(() => {
+                    if (document.body.contains(form)) document.body.removeChild(form);
+                    if (document.body.contains(iframe)) document.body.removeChild(iframe);
+                }, 5000);
                 
             } catch(e) {
-                console.error("Error Webhook Facebook:", e);
+                console.error("Error enviando a Facebook:", e);
                 showToast('❌ Error al enviar a Facebook: ' + e.message, 'error');
             }
         }
