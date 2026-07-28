@@ -475,10 +475,10 @@
         </div>
     </footer>
 
-    <!-- Lógica de Funcionamiento -->
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<!-- Lógica de Funcionamiento -->
+    <!-- Firebase SDK (carga asíncrona para no bloquear la página) -->
+    <script async src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script async src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 
     <script>
         // 🔐 CONFIGURACIÓN FIREBASE (REEMPLAZA CON TUS DATOS)
@@ -492,7 +492,7 @@
         };
         const SECURE_KEY = "Cl4v3_Sup3r_S3gur4_2026++";
         const ADMIN_PASS = "Kelys03kg++Aranza..";
-        let isAdminLoggedIn = false;
+        let isAdminLoggedIn = sessionStorage.getItem('admin_logged_in') === 'true';
         let pendingDeleteId = null;
         let uploadedBase64Media = '';
         let selectedCategory = 'todas';
@@ -961,6 +961,12 @@ function initApp() {
             // Renderizar al instante
             loadSocialSettings();
             renderNews();
+            
+            // Restaurar sesión de administrador si estaba activa
+            if (isAdminLoggedIn) {
+                document.getElementById('adminBtnText').textContent = 'Panel Admin (Activo)';
+                document.getElementById('publishBtn').classList.remove('hidden');
+            }
             
             // Detectar enlace directo ?id=xxx
             const urlParams = new URLSearchParams(window.location.search);
@@ -1835,6 +1841,7 @@ function handleAdminLogin(e) {
             const pass = document.getElementById('adminPassword').value;
             if (pass === ADMIN_PASS) {
                 isAdminLoggedIn = true;
+                sessionStorage.setItem('admin_logged_in', 'true');
                 adminLoginAttempts = 0;
                 closeLoginModal();
                 document.getElementById('adminBtnText').textContent = 'Panel Admin (Activo)';
@@ -1861,8 +1868,9 @@ function handleAdminLogin(e) {
             }
         }
 
-        function logoutAdmin() {
+function logoutAdmin() {
             isAdminLoggedIn = false;
+            sessionStorage.removeItem('admin_logged_in');
             document.getElementById('adminBtnText').textContent = 'Panel Admin';
             document.getElementById('adminDashboard').classList.add('hidden');
             document.getElementById('publishBtn').classList.add('hidden');
