@@ -194,6 +194,9 @@
                         <i data-lucide="shield" class="w-4 h-4"></i> 🛡️ Panel de Seguridad y Auditoría
                     </h3>
                     <div class="flex gap-2">
+                        <button onclick="showSetupPinFromAdmin()" class="bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 px-3 py-1 rounded text-[10px] font-bold transition flex items-center gap-1">
+                            <i data-lucide="key-round" class="w-3 h-3"></i> PIN 2FA
+                        </button>
                         <button onclick="viewSecurityLogs()" class="bg-red-600/30 hover:bg-red-600/50 text-red-300 px-3 py-1 rounded text-[10px] font-bold transition">
                             Ver Logs
                         </button>
@@ -204,6 +207,18 @@
                 </div>
                 <div id="securityLogsContainer" class="hidden bg-black/50 rounded-lg p-3 max-h-48 overflow-y-auto text-[11px] font-mono text-green-400 leading-relaxed">
                     <!-- Logs de seguridad se renderizan aquí -->
+                </div>
+                <div class="flex items-center justify-between bg-black/30 rounded-lg p-2.5 border border-purple-800/50">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="key-round" class="w-4 h-4 text-purple-400"></i>
+                        <span class="text-[11px] text-gray-300">
+                            <strong class="text-purple-300">2FA:</strong> 
+                            <span id="pinStatusText">PIN no configurado</span>
+                        </span>
+                    </div>
+                    <button onclick="showSetupPinFromAdmin()" class="bg-purple-600/40 hover:bg-purple-600/60 text-purple-200 px-2.5 py-1 rounded text-[10px] font-bold transition text-xs">
+                        Configurar
+                    </button>
                 </div>
                 <p class="text-[10px] text-red-400/70">
                     ⚡ Detecta y alerta sobre ataques de fuerza bruta, accesos no autorizados e intentos maliciosos. Las alertas se envían al Telegram del administrador.
@@ -473,6 +488,76 @@
         </div>
     </div>
 
+    <!-- Modal PIN 2FA - Segundo Factor de Autenticación -->
+    <div id="pinModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-gray-100">
+            <div class="text-center mb-4">
+                <div class="bg-emerald-600 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2 text-white">
+                    <i data-lucide="shield" class="w-6 h-6"></i>
+                </div>
+                <h3 class="text-lg font-black text-gray-900 uppercase">🔐 Verificación de Seguridad</h3>
+                <p class="text-xs text-gray-500">Introduce tu PIN de 4 dígitos para completar el acceso.</p>
+            </div>
+
+            <form onsubmit="handlePinVerification(event)" class="space-y-3">
+                <div>
+                    <input type="password" id="adminPinInput" required maxlength="4" pattern="[0-9]{4}" inputmode="numeric" placeholder="PIN de 4 dígitos" class="w-full px-3 py-3 border border-gray-300 rounded-lg text-lg text-center font-bold tracking-[0.5em] focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <p id="pinError" class="text-xs text-red-600 font-semibold hidden text-center">PIN incorrecto. Inténtalo de nuevo.</p>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" onclick="closePinModal()" class="w-1/2 py-2 border rounded-lg text-xs font-semibold text-gray-600">Cancelar</button>
+                    <button type="submit" id="btnVerifyPin" class="w-1/2 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700">Verificar PIN</button>
+                </div>
+            </form>
+            
+            <div class="mt-3 pt-3 border-t border-gray-100 text-center">
+                <button onclick="showSetupPinSection()" class="text-[11px] text-emerald-600 hover:text-emerald-800 font-semibold underline">
+                    ⚙️ Configurar o Cambiar PIN de Seguridad
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Configurar PIN 2FA -->
+    <div id="setupPinModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-gray-100">
+            <div class="text-center mb-4">
+                <div class="bg-purple-600 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2 text-white">
+                    <i data-lucide="key-round" class="w-6 h-6"></i>
+                </div>
+                <h3 class="text-lg font-black text-gray-900 uppercase">🔑 Configurar PIN 2FA</h3>
+                <p class="text-xs text-gray-500">Establece un PIN de 4 dígitos como segundo factor de seguridad.</p>
+            </div>
+
+            <form onsubmit="handleSavePin(event)" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1 text-left">PIN Actual (si ya tienes uno configurado)</label>
+                    <input type="password" id="currentPinInput" maxlength="4" pattern="[0-9]{4}" inputmode="numeric" placeholder="Dejar vacío si es nuevo" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-center font-bold tracking-[0.3em] focus:ring-2 focus:ring-purple-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1 text-left">Nuevo PIN de 4 dígitos *</label>
+                    <input type="password" id="newPinInput" required maxlength="4" pattern="[0-9]{4}" inputmode="numeric" placeholder="••••" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-center font-bold tracking-[0.5em] focus:ring-2 focus:ring-purple-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1 text-left">Confirmar Nuevo PIN *</label>
+                    <input type="password" id="confirmPinInput" required maxlength="4" pattern="[0-9]{4}" inputmode="numeric" placeholder="••••" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-center font-bold tracking-[0.5em] focus:ring-2 focus:ring-purple-500 focus:outline-none">
+                </div>
+                <p id="setupPinError" class="text-xs text-red-600 font-semibold hidden text-center">Los PIN no coinciden o no son válidos.</p>
+                <p id="setupPinSuccess" class="text-xs text-emerald-600 font-semibold hidden text-center">✅ PIN configurado correctamente.</p>
+                <div class="flex justify-end space-x-2 pt-2">
+                    <button type="button" onclick="closeSetupPinModal()" class="w-1/2 py-2 border rounded-lg text-xs font-semibold text-gray-600">Cancelar</button>
+                    <button type="submit" id="btnSavePin" class="w-1/2 py-2 bg-purple-600 text-white rounded-lg text-xs font-bold hover:bg-purple-700">Guardar PIN</button>
+                </div>
+            </form>
+            
+            <div class="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <p class="text-[10px] text-amber-800 font-medium">
+                    ⚠️ <strong>Importante:</strong> El PIN se almacena de forma segura en la nube (Supabase) y estará disponible desde cualquier dispositivo. No compartas tu PIN con nadie.
+                </p>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal Confirmar Eliminación -->
     <div id="confirmDeleteModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
         <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl text-center border border-gray-100">
@@ -517,6 +602,12 @@
         let adminLoginAttempts = 0;
         const MAX_LOGIN_ATTEMPTS = 3;
         let loginBlockedUntil = 0;
+        
+        // 🔐 2FA - Variables de PIN
+        let adminPinConfigured = localStorage.getItem('admin_pin_configured') === 'true';
+        let pinLoginStep = false;
+        let pinVerified = sessionStorage.getItem('admin_pin_verified') === 'true';
+        let tempAdminPassword = '';
 
         // 🚀 Inicializar Supabase
         function initSupabase() {
@@ -2034,6 +2125,491 @@ function logoutAdmin() {
             document.getElementById('publishBtn').classList.add('hidden');
             showToast('🔒 Sesión del Panel Admin cerrada.', 'info');
         }
+
+        // 🔐 Funciones SHA-256 para hash del PIN
+        async function hashPin(pin) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(pin + 'TuInfoAlDia2024_SALT');
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        // ☁️ Guardar configuración/admin settings en Supabase
+        async function saveAdminSettingsToCloud() {
+            if (!supabaseClient) return;
+            try {
+                const settings = {
+                    tg_token: localStorage.getItem('social_tg_token') || '',
+                    tg_chat: localStorage.getItem('social_tg_chat') || '',
+                    fb_webhook: localStorage.getItem('social_fb_webhook') || '',
+                    site_url: localStorage.getItem('social_site_url') || '',
+                    ai_provider: localStorage.getItem('ai_provider') || 'free',
+                    ai_api_key: localStorage.getItem('ai_api_key') || ''
+                };
+                
+                const { error } = await supabaseClient
+                    .from('admin_settings')
+                    .upsert({
+                        id: 'config_1',
+                        settings_json: JSON.stringify(settings),
+                        updated_at: new Date().toISOString()
+                    }, { onConflict: 'id' });
+                
+                if (error) throw error;
+                console.log('✅ Configuración guardada en la nube');
+            } catch(e) {
+                console.warn('⚠️ Error guardando configuración en la nube:', e.message || e);
+            }
+        }
+
+        // ☁️ Cargar configuración/admin settings desde Supabase
+        async function loadAdminSettingsFromCloud() {
+            if (!supabaseClient) return false;
+            try {
+                const { data, error } = await supabaseClient
+                    .from('admin_settings')
+                    .select('settings_json')
+                    .eq('id', 'config_1')
+                    .single();
+                
+                if (error) throw error;
+                
+                if (data && data.settings_json) {
+                    const settings = JSON.parse(data.settings_json);
+                    if (settings.tg_token) localStorage.setItem('social_tg_token', settings.tg_token);
+                    if (settings.tg_chat) localStorage.setItem('social_tg_chat', settings.tg_chat);
+                    if (settings.fb_webhook) localStorage.setItem('social_fb_webhook', settings.fb_webhook);
+                    if (settings.site_url) localStorage.setItem('social_site_url', settings.site_url);
+                    if (settings.ai_provider) localStorage.setItem('ai_provider', settings.ai_provider);
+                    if (settings.ai_api_key) localStorage.setItem('ai_api_key', settings.ai_api_key);
+                    
+                    console.log('✅ Configuración cargada desde la nube');
+                    return true;
+                }
+            } catch(e) {
+                console.warn('⚠️ Error cargando configuración de la nube:', e.message || e);
+            }
+            return false;
+        }
+
+        // ☁️ Guardar PIN hash en Supabase (nube)
+        async function saveAdminPinToCloud(pinHash) {
+            if (!supabaseClient) {
+                // Fallback a localStorage
+                localStorage.setItem('admin_pin_hash', pinHash);
+                localStorage.setItem('admin_pin_configured', 'true');
+                return;
+            }
+            try {
+                const { error } = await supabaseClient
+                    .from('admin_settings')
+                    .upsert({
+                        id: 'pin_config',
+                        settings_json: JSON.stringify({ pin_hash: pinHash }),
+                        updated_at: new Date().toISOString()
+                    }, { onConflict: 'id' });
+                
+                if (error) throw error;
+                console.log('✅ PIN guardado en la nube');
+                
+                // También guardar en localStorage como respaldo
+                localStorage.setItem('admin_pin_hash', pinHash);
+                localStorage.setItem('admin_pin_configured', 'true');
+            } catch(e) {
+                console.warn('⚠️ Error guardando PIN en la nube:', e.message || e);
+                // Fallback a localStorage
+                localStorage.setItem('admin_pin_hash', pinHash);
+                localStorage.setItem('admin_pin_configured', 'true');
+            }
+        }
+
+        // ☁️ Cargar PIN hash desde Supabase (nube)
+        let storedPinHash = localStorage.getItem('admin_pin_hash') || '';
+
+        async function loadAdminPinFromCloud() {
+            // Primero verificar localStorage como respaldo rápido
+            if (localStorage.getItem('admin_pin_hash')) {
+                storedPinHash = localStorage.getItem('admin_pin_hash');
+                adminPinConfigured = localStorage.getItem('admin_pin_configured') === 'true';
+            }
+            
+            if (!supabaseClient) return;
+            
+            try {
+                const { data, error } = await supabaseClient
+                    .from('admin_settings')
+                    .select('settings_json')
+                    .eq('id', 'pin_config')
+                    .single();
+                
+                if (error) throw error;
+                
+                if (data && data.settings_json) {
+                    const pinData = JSON.parse(data.settings_json);
+                    if (pinData.pin_hash) {
+                        storedPinHash = pinData.pin_hash;
+                        adminPinConfigured = true;
+                        // Sincronizar localStorage
+                        localStorage.setItem('admin_pin_hash', pinData.pin_hash);
+                        localStorage.setItem('admin_pin_configured', 'true');
+                        console.log('✅ PIN cargado desde la nube');
+                    }
+                }
+            } catch(e) {
+                console.warn('⚠️ Error cargando PIN de la nube, usando localStorage:', e.message || e);
+            }
+        }
+
+        // 🪪 Mostrar modal de verificación de PIN
+        function showPinModal() {
+            document.getElementById('pinModal').classList.remove('hidden');
+            document.getElementById('pinModal').classList.add('flex');
+            document.getElementById('adminPinInput').value = '';
+            document.getElementById('pinError').classList.add('hidden');
+            setTimeout(() => document.getElementById('adminPinInput').focus(), 200);
+            lucide.createIcons();
+        }
+
+        function closePinModal() {
+            document.getElementById('pinModal').classList.add('hidden');
+            document.getElementById('pinModal').classList.remove('flex');
+            document.getElementById('adminPinInput').value = '';
+            document.getElementById('pinError').classList.add('hidden');
+            // Si se cancela, cerrar sesión
+            if (pinLoginStep) {
+                pinLoginStep = false;
+                tempAdminPassword = '';
+                showToast('🔒 Verificación cancelada.', 'warning');
+            }
+        }
+
+        // ✅ Verificar PIN ingresado
+        async function handlePinVerification(e) {
+            e.preventDefault();
+            const pin = document.getElementById('adminPinInput').value.trim();
+            
+            if (!pin || pin.length !== 4 || !/^\d{4}$/.test(pin)) {
+                document.getElementById('pinError').textContent = '❌ El PIN debe tener exactamente 4 dígitos numéricos.';
+                document.getElementById('pinError').classList.remove('hidden');
+                return;
+            }
+            
+            const pinHash = await hashPin(pin);
+            
+            if (pinHash === storedPinHash) {
+                // ✅ PIN correcto - completar login
+                pinVerified = true;
+                sessionStorage.setItem('admin_pin_verified', 'true');
+                closePinModal();
+                
+                // Completar inicio de sesión
+                completeAdminLogin();
+                logAuditEvent('login_2fa_exitoso', 'Verificación 2FA completada');
+            } else {
+                document.getElementById('pinError').textContent = '❌ PIN incorrecto. Inténtalo de nuevo.';
+                document.getElementById('pinError').classList.remove('hidden');
+                document.getElementById('adminPinInput').value = '';
+                document.getElementById('adminPinInput').focus();
+                logAuditEvent('login_2fa_fallido', 'Intento de PIN incorrecto');
+                
+                // Detectar múltiples intentos fallidos de PIN
+                detectAttack('pin_brute_force', 'Intento de PIN incorrecto - 2FA');
+            }
+        }
+
+        // Completar el inicio de sesión después de verificar contraseña y PIN
+        function completeAdminLogin() {
+            isAdminLoggedIn = true;
+            pinLoginStep = false;
+            tempAdminPassword = '';
+            sessionStorage.setItem('admin_logged_in', 'true');
+            
+            closeLoginModal();
+            document.getElementById('adminBtnText').textContent = 'Panel Admin (Activo)';
+            document.getElementById('adminDashboard').classList.remove('hidden');
+            document.getElementById('publishBtn').classList.remove('hidden');
+            
+            // Cargar settings desde la nube al iniciar sesión
+            loadAdminSettingsFromCloud().then(() => {
+                loadSocialSettings();
+                showToast('🔑 Sesión de Administrador iniciada con 2FA.', 'success');
+            });
+        }
+
+        // 🔧 Mostrar modal de configuración de PIN
+        function showSetupPinSection() {
+            closePinModal();
+            document.getElementById('setupPinModal').classList.remove('hidden');
+            document.getElementById('setupPinModal').classList.add('flex');
+            document.getElementById('currentPinInput').value = '';
+            document.getElementById('newPinInput').value = '';
+            document.getElementById('confirmPinInput').value = '';
+            document.getElementById('setupPinError').classList.add('hidden');
+            document.getElementById('setupPinSuccess').classList.add('hidden');
+            lucide.createIcons();
+        }
+
+        function closeSetupPinModal() {
+            document.getElementById('setupPinModal').classList.add('hidden');
+            document.getElementById('setupPinModal').classList.remove('flex');
+        }
+
+        async function showSetupPinFromAdmin() {
+            document.getElementById('setupPinModal').classList.remove('hidden');
+            document.getElementById('setupPinModal').classList.add('flex');
+            document.getElementById('currentPinInput').value = '';
+            document.getElementById('newPinInput').value = '';
+            document.getElementById('confirmPinInput').value = '';
+            document.getElementById('setupPinError').classList.add('hidden');
+            document.getElementById('setupPinSuccess').classList.add('hidden');
+            lucide.createIcons();
+        }
+
+        // ✅ Guardar o cambiar PIN
+        async function handleSavePin(e) {
+            e.preventDefault();
+            
+            const currentPin = document.getElementById('currentPinInput').value.trim();
+            const newPin = document.getElementById('newPinInput').value.trim();
+            const confirmPin = document.getElementById('confirmPinInput').value.trim();
+            
+            document.getElementById('setupPinError').classList.add('hidden');
+            document.getElementById('setupPinSuccess').classList.add('hidden');
+            
+            // Validar nuevo PIN
+            if (!newPin || newPin.length !== 4 || !/^\d{4}$/.test(newPin)) {
+                document.getElementById('setupPinError').textContent = '❌ El PIN debe tener exactamente 4 dígitos numéricos.';
+                document.getElementById('setupPinError').classList.remove('hidden');
+                return;
+            }
+            
+            // Validar que coincidan
+            if (newPin !== confirmPin) {
+                document.getElementById('setupPinError').textContent = '❌ Los PIN ingresados no coinciden.';
+                document.getElementById('setupPinError').classList.remove('hidden');
+                return;
+            }
+            
+            // Si ya hay PIN configurado, verificar el actual
+            if (adminPinConfigured && storedPinHash) {
+                if (!currentPin) {
+                    document.getElementById('setupPinError').textContent = '❌ Debes ingresar tu PIN actual para cambiarlo.';
+                    document.getElementById('setupPinError').classList.remove('hidden');
+                    return;
+                }
+                
+                const currentHash = await hashPin(currentPin);
+                if (currentHash !== storedPinHash) {
+                    document.getElementById('setupPinError').textContent = '❌ El PIN actual no es correcto.';
+                    document.getElementById('setupPinError').classList.remove('hidden');
+                    return;
+                }
+            }
+            
+            // Guardar nuevo PIN
+            const newHash = await hashPin(newPin);
+            storedPinHash = newHash;
+            adminPinConfigured = true;
+            
+            await saveAdminPinToCloud(newHash);
+            
+            document.getElementById('setupPinSuccess').textContent = '✅ PIN de seguridad configurado correctamente.';
+            document.getElementById('setupPinSuccess').classList.remove('hidden');
+            showToast('🔐 PIN 2FA configurado exitosamente.', 'success');
+            
+            setTimeout(() => {
+                closeSetupPinModal();
+            }, 2000);
+        }
+
+        // ⚙️ Modificar saveSocialSettings para también guardar en la nube
+        const originalSaveSocialSettings = saveSocialSettings;
+        saveSocialSettings = function() {
+            const token = document.getElementById('cfgTelegramToken').value.trim();
+            const chatId = document.getElementById('cfgTelegramChatId').value.trim();
+            const webhook = document.getElementById('cfgFacebookWebhook').value.trim();
+            const siteUrl = document.getElementById('cfgSiteUrl').value.trim();
+            const aiProvider = document.getElementById('cfgAiProvider').value;
+            const aiApiKey = document.getElementById('cfgAiApiKey').value.trim();
+
+            localStorage.setItem('social_tg_token', token);
+            localStorage.setItem('social_tg_chat', chatId);
+            localStorage.setItem('social_fb_webhook', webhook);
+            localStorage.setItem('social_site_url', siteUrl);
+            localStorage.setItem('ai_provider', aiProvider);
+            localStorage.setItem('ai_api_key', aiApiKey);
+
+            // Guardar en la nube
+            saveAdminSettingsToCloud();
+
+            showToast('✅ Configuración guardada correctamente en local y nube.', 'success');
+        };
+
+        // 🔄 Modificar handleAdminLogin para incluir verificación de PIN
+        const originalHandleAdminLogin = handleAdminLogin;
+        handleAdminLogin = function(e) {
+            e.preventDefault();
+            const now = Date.now();
+            
+            // Verificar si está bloqueado
+            if (loginBlockedUntil > now) {
+                const remainingSeconds = Math.ceil((loginBlockedUntil - now) / 1000);
+                document.getElementById('loginError').textContent = `🔒 Bloqueado. Espera ${remainingSeconds} segundos.`;
+                document.getElementById('loginError').classList.remove('hidden');
+                detectAttack('login_blocked', 'Intento de login durante bloqueo');
+                return;
+            }
+
+            // Detectar múltiples intentos fallidos como posible ataque
+            if (adminLoginAttempts >= 2) {
+                detectAttack('brute_force', `Intento #${adminLoginAttempts + 1} de login fallido`);
+            }
+
+            const pass = document.getElementById('adminPassword').value;
+            if (pass === ADMIN_PASS) {
+                // ✅ Contraseña correcta - verificar si hay PIN configurado
+                adminLoginAttempts = 0;
+                
+                // Primero cargar PIN desde la nube
+                loadAdminPinFromCloud().then(() => {
+                    if (adminPinConfigured && storedPinHash) {
+                        // Tiene PIN configurado - solicitar 2FA
+                        pinLoginStep = true;
+                        tempAdminPassword = pass;
+                        closeLoginModal();
+                        showPinModal();
+                    } else {
+                        // No hay PIN configurado - acceso directo (pero recomendamos configurar)
+                        isAdminLoggedIn = true;
+                        sessionStorage.setItem('admin_logged_in', 'true');
+                        closeLoginModal();
+                        document.getElementById('adminBtnText').textContent = 'Panel Admin (Activo)';
+                        document.getElementById('adminDashboard').classList.remove('hidden');
+                        document.getElementById('publishBtn').classList.remove('hidden');
+                        
+                        // Cargar settings desde la nube
+                        loadAdminSettingsFromCloud().then(() => {
+                            loadSocialSettings();
+                        });
+                        
+                        logAuditEvent('login_exitoso_sin_pin', 'Inicio de sesión sin PIN configurado');
+                        showToast('🔑 Sesión iniciada. ⚠️ Te recomendamos configurar un PIN 2FA en Seguridad.', 'warning');
+                    }
+                });
+            } else {
+                adminLoginAttempts++;
+                const remaining = MAX_LOGIN_ATTEMPTS - adminLoginAttempts;
+                
+                if (remaining <= 0) {
+                    loginBlockedUntil = Date.now() + 60000;
+                    document.getElementById('loginError').textContent = '🔒 Demasiados intentos. Bloqueado 60 segundos.';
+                    adminLoginAttempts = 0;
+                    detectAttack('login_blocked_60s', '3 intentos fallidos - bloqueo 60s');
+                } else {
+                    document.getElementById('loginError').textContent = `❌ Clave incorrecta. Te quedan ${remaining} intento(s).`;
+                }
+                document.getElementById('loginError').classList.remove('hidden');
+                document.getElementById('adminPassword').value = '';
+                logAuditEvent('login_fallido', `Intento ${adminLoginAttempts}`);
+            }
+        };
+
+        // 🔄 Modificar logoutAdmin para también limpiar verificación PIN
+        const originalLogoutAdmin = logoutAdmin;
+        logoutAdmin = function() {
+            isAdminLoggedIn = false;
+            pinVerified = false;
+            pinLoginStep = false;
+            tempAdminPassword = '';
+            sessionStorage.removeItem('admin_logged_in');
+            sessionStorage.removeItem('admin_pin_verified');
+            document.getElementById('adminBtnText').textContent = 'Panel Admin';
+            document.getElementById('adminDashboard').classList.add('hidden');
+            document.getElementById('publishBtn').classList.add('hidden');
+            showToast('🔒 Sesión del Panel Admin cerrada.', 'info');
+        };
+
+        // 📊 Función para actualizar el estado del PIN en el Panel de Seguridad
+        function updatePinStatusText() {
+            const statusEl = document.getElementById('pinStatusText');
+            if (!statusEl) return;
+            
+            if (adminPinConfigured && storedPinHash) {
+                statusEl.textContent = '✅ PIN configurado';
+                statusEl.className = 'text-emerald-400 font-semibold';
+            } else {
+                statusEl.textContent = '⚠️ PIN no configurado';
+                statusEl.className = 'text-amber-400 font-semibold';
+            }
+        }
+
+        // 📋 Funciones de Logs de Seguridad
+        function viewSecurityLogs() {
+            const container = document.getElementById('securityLogsContainer');
+            try {
+                const logs = JSON.parse(localStorage.getItem('audit_logs') || '[]');
+                if (logs.length === 0) {
+                    container.innerHTML = '<p class="text-gray-500 italic">No hay registros de auditoría aún.</p>';
+                } else {
+                    container.innerHTML = logs.slice(-50).reverse().map(log => {
+                        const time = new Date(log.time).toLocaleString('es-ES');
+                        return `<div class="border-b border-green-900/50 pb-1 mb-1">
+                            <span class="text-gray-400">[${time}]</span>
+                            <span class="text-green-300 font-bold">${escapeHTML(log.action)}</span>
+                            ${log.details ? `<span class="text-gray-400">→ ${escapeHTML(log.details)}</span>` : ''}
+                        </div>`;
+                    }).join('');
+                }
+            } catch(e) {
+                container.innerHTML = '<p class="text-red-400">Error cargando logs.</p>';
+            }
+            container.classList.remove('hidden');
+        }
+
+        function clearSecurityLogs() {
+            if (confirm('¿Limpiar todos los registros de auditoría?')) {
+                localStorage.setItem('audit_logs', '[]');
+                document.getElementById('securityLogsContainer').classList.add('hidden');
+                showToast('🗑️ Logs de seguridad eliminados.', 'info');
+            }
+        }
+
+        // 🔄 Modificar finalizeInit para restaurar sesión con PIN
+        const originalFinalizeInit = finalizeInit;
+        finalizeInit = function() {
+            loadSocialSettings();
+            renderNews();
+            
+            // Cargar PIN desde la nube al inicio
+            loadAdminPinFromCloud().then(() => {
+                // Actualizar estado del PIN en el panel de seguridad
+                updatePinStatusText();
+            });
+            
+            // Restaurar sesión de administrador si estaba activa
+            if (isAdminLoggedIn) {
+                // Verificar si necesita PIN para esta sesión
+                if (adminPinConfigured && !pinVerified) {
+                    // Tiene PIN pero no lo ha verificado en esta sesión, necesita re-login
+                    isAdminLoggedIn = false;
+                    sessionStorage.removeItem('admin_logged_in');
+                    sessionStorage.removeItem('admin_pin_verified');
+                    showToast('🔒 Se requiere verificación 2FA. Vuelve a iniciar sesión.', 'warning');
+                } else {
+                    document.getElementById('adminBtnText').textContent = 'Panel Admin (Activo)';
+                    document.getElementById('publishBtn').classList.remove('hidden');
+                }
+            }
+            
+            // Detectar enlace directo ?id=xxx
+            const urlParams = new URLSearchParams(window.location.search);
+            const articleId = urlParams.get('id');
+            if (articleId) {
+                setTimeout(() => openArticle(articleId), 100);
+            }
+            lucide.createIcons();
+        };
 
         window.onload = function() {
             initApp();
