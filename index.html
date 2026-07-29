@@ -367,10 +367,37 @@
                         <input type="file" id="inputFileImage" accept="image/*" onchange="handleFileUpload(event, 'image')" class="w-full text-xs text-gray-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100 cursor-pointer">
                         <div class="flex gap-2">
                             <input type="url" id="inputImageUrl" placeholder="O pega enlace directo de Imagen (https://...)" class="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-red-500 focus:outline-none">
-                            <button type="button" onclick="autoGenerateImage()" title="Generar imagen automática según título y categoría" class="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition shadow-sm whitespace-nowrap">
+                            <button type="button" onclick="showImageSelector()" title="Elegir entre 4 imágenes generadas automáticamente" class="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition shadow-sm whitespace-nowrap">
                                 <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
-                                Generar
+                                Elegir Imagen IA
                             </button>
+                        </div>
+                        <!-- Miniaturas de vista previa -->
+                        <div id="imagePreviewContainer" class="hidden grid grid-cols-4 gap-2 mt-2">
+                            <div class="relative cursor-pointer group" onclick="selectPreviewImage(0)">
+                                <div class="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition rounded-lg z-10 flex items-center justify-center">
+                                    <i data-lucide="check-circle" class="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition"></i>
+                                </div>
+                                <img id="previewImg0" src="" class="w-full h-20 object-cover rounded-lg border-2 border-transparent group-hover:border-purple-500 transition">
+                            </div>
+                            <div class="relative cursor-pointer group" onclick="selectPreviewImage(1)">
+                                <div class="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition rounded-lg z-10 flex items-center justify-center">
+                                    <i data-lucide="check-circle" class="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition"></i>
+                                </div>
+                                <img id="previewImg1" src="" class="w-full h-20 object-cover rounded-lg border-2 border-transparent group-hover:border-purple-500 transition">
+                            </div>
+                            <div class="relative cursor-pointer group" onclick="selectPreviewImage(2)">
+                                <div class="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition rounded-lg z-10 flex items-center justify-center">
+                                    <i data-lucide="check-circle" class="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition"></i>
+                                </div>
+                                <img id="previewImg2" src="" class="w-full h-20 object-cover rounded-lg border-2 border-transparent group-hover:border-purple-500 transition">
+                            </div>
+                            <div class="relative cursor-pointer group" onclick="selectPreviewImage(3)">
+                                <div class="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition rounded-lg z-10 flex items-center justify-center">
+                                    <i data-lucide="check-circle" class="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition"></i>
+                                </div>
+                                <img id="previewImg3" src="" class="w-full h-20 object-cover rounded-lg border-2 border-transparent group-hover:border-purple-500 transition">
+                            </div>
                         </div>
                     </div>
 
@@ -424,10 +451,7 @@
         </div>
     </div>
 
-    <!-- Modal Autenticación Administración -->
-    <div id="loginModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-gray-100">
-            <div class="text-center mb-4">
+
                 <div class="bg-slate-900 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2 text-emerald-400">
                     <i data-lucide="lock" class="w-6 h-6"></i>
                 </div>
@@ -938,13 +962,105 @@
             
             if (!title) {
                 showToast('⚠️ Primero escribe un título para generar una imagen relevante.', 'warning');
-                return;
+                return null;
             }
             
             const imgUrl = findBestImage(title, category);
-            document.getElementById('inputImageUrl').value = imgUrl;
-            showToast('🎨 Imagen generada según: "' + title.substring(0, 40) + '..." en ' + category, 'success');
+            return imgUrl;
+        }
+
+        let previewImages = [];
+
+        function showImageSelector() {
+            const title = document.getElementById('inputTitle').value.trim();
+            const category = document.getElementById('inputCategory').value;
+            
+            if (!title) {
+                showToast('⚠️ Primero escribe un título para generar imágenes relevantes.', 'warning');
+                return;
+            }
+
+            // Generar 4 imágenes diferentes
+            previewImages = [];
+            const catImages = IMAGE_LIBRARY[category] || IMAGE_LIBRARY['Nacionales'];
+            
+            // 1. Primera imagen: la mejor coincidencia por palabras clave
+            const bestImg = findBestImage(title, category);
+            previewImages.push(bestImg);
+            
+            // 2-4: Imágenes del mismo tema/categoría
+            // Usar hash del título para tener variedad pero consistencia
+            let hash = 0;
+            for (let i = 0; i < title.length; i++) {
+                hash = ((hash << 5) - hash) + title.charCodeAt(i);
+                hash |= 0;
+            }
+            
+            for (let i = 0; i < 3; i++) {
+                if (catImages && catImages.length > 0) {
+                    const idx = (Math.abs(hash) + i * 7 + 3) % catImages.length;
+                    const img = catImages[idx];
+                    if (!previewImages.includes(img)) {
+                        previewImages.push(img);
+                    } else {
+                        // Buscar otra que no esté repetida
+                        let altIdx = (idx + 2) % catImages.length;
+                        let attempts = 0;
+                        while (previewImages.includes(catImages[altIdx]) && attempts < catImages.length) {
+                            altIdx = (altIdx + 1) % catImages.length;
+                            attempts++;
+                        }
+                        previewImages.push(catImages[altIdx]);
+                    }
+                }
+            }
+            
+            // Asegurar que tengamos 4 imágenes
+            const fallbackImg = 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=800&q=80';
+            while (previewImages.length < 4) {
+                previewImages.push(fallbackImg);
+            }
+
+            // Mostrar las 4 miniaturas
+            const container = document.getElementById('imagePreviewContainer');
+            for (let i = 0; i < 4; i++) {
+                document.getElementById(`previewImg${i}`).src = previewImages[i];
+                document.getElementById(`previewImg${i}`).dataset.selected = 'false';
+            }
+            container.classList.remove('hidden');
+            showToast('🎨 Selecciona la imagen que mejor se ajuste a la noticia.', 'info');
             lucide.createIcons();
+        }
+
+        function selectPreviewImage(index) {
+            if (!previewImages[index]) return;
+            const url = previewImages[index];
+            document.getElementById('inputImageUrl').value = url;
+            
+            // Resaltar la seleccionada visualmente
+            for (let i = 0; i < 4; i++) {
+                const img = document.getElementById(`previewImg${i}`);
+                if (i === index) {
+                    img.classList.remove('border-transparent');
+                    img.classList.add('border-purple-500', 'border-4');
+                } else {
+                    img.classList.add('border-transparent');
+                    img.classList.remove('border-purple-500', 'border-4');
+                }
+            }
+            
+            showToast('✅ Imagen seleccionada: ' + url.substring(0, 50) + '...', 'success');
+            
+            // Ocultar previews después de 2 segundos
+            setTimeout(() => {
+                document.getElementById('imagePreviewContainer').classList.add('hidden');
+                // Resetear bordes
+                for (let i = 0; i < 4; i++) {
+                    const img = document.getElementById(`previewImg${i}`);
+                    img.classList.remove('border-purple-500', 'border-4');
+                    img.classList.add('border-transparent');
+                }
+            }, 2000);
         }
 
 function initApp() {
@@ -1719,11 +1835,11 @@ if (editId) {
                 articleDirectUrl = `https://tusitio.netlify.app?id=${article.id}`;
             }
 
-            // Determinar la mejor URL de imagen
+            // Usar la imagen que el usuario seleccionó, sin modificarla
             let imageUrl = article.mediaUrl || '';
-            if (imageUrl.startsWith('data:image')) {
-                imageUrl = findBestImage(article.title, article.category);
-            }
+            // Si es data:image (subida por el usuario), se envía tal cual
+            // Si es una URL, se envía tal cual
+            // NO reemplazar la imagen del usuario por una genérica
 
             // Construir el mensaje formateado con saltos de línea reales
             const mensaje = `📰 *TU INFORMACIÓN AL DÍA*
