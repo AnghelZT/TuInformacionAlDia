@@ -619,7 +619,7 @@
         let selectedCategory = 'todas';
         let newsList = [];
         
-        let storedPinHash = localStorage.getItem('admin_pin_hash') || '';
+        let storedPinHash = '';
 
         // Función Criptográfica SHA-256 para PIN y Contraseñas
         async function hashPassword(text) {
@@ -929,7 +929,6 @@
                 document.getElementById('cfgAiApiKey').value = config.ai_api_key || '';
                 if (config.pin_hash) {
                     storedPinHash = config.pin_hash;
-                    localStorage.setItem('admin_pin_hash', storedPinHash);
                 }
             } else {
                 document.getElementById('cfgTelegramToken').value = localStorage.getItem('social_tg_token') || '';
@@ -1125,7 +1124,7 @@
                     <td class="p-3 text-right space-x-2">
                         <button onclick="openPublishModal('${item.id}')" class="text-sky-400 hover:text-sky-300 font-bold text-xs">Editar</button>
                         <button onclick="deleteNewsModal('${item.id}')" class="text-red-400 hover:text-red-300 font-bold text-xs">Eliminar</button>
-                    </td>`;
+                    `;
                 adminBody.appendChild(tr);
             });
 
@@ -1443,36 +1442,63 @@
             document.getElementById('loginModal').classList.remove('flex');
         }
 
-        async function handleAdminLogin(event) {
-            event.preventDefault();
-            const pass = document.getElementById('adminPassword').value;
-            
-            if (supabaseClient) {
-                try {
-                    const passHash = await hashPassword(pass);
-                    const { data, error } = await supabaseClient
-                        .from('admins')
-                        .select('*')
-                        .eq('password_hash', passHash)
-                        .single();
+        async function handleAdminLogin(event){
 
-                    if (data) {
-                        sessionStorage.setItem('admin_logged_in', 'true');
-                        closeLoginModal();
-                        openPinModal();
-                    } else {
-                        document.getElementById('loginError').classList.remove('hidden');
-                    }
-                } catch(err) {
-                    console.error("Error al autenticar:", err);
-                    document.getElementById('loginError').classList.remove('hidden');
+            event.preventDefault();
+
+            const pass = document
+                .getElementById('adminPassword')
+                .value
+                .trim();
+
+
+            try {
+
+                const { data, error } = await supabaseClient
+                    .rpc('check_admin_login',{
+                        admin_email:'admin',
+                        admin_password:pass
+                    });
+
+
+                console.log("Resultado Supabase:", data);
+                console.log("Error:", error);
+
+
+                if(error){
+
+                    console.error(error);
+                    showToast("Error de conexión con Supabase","error");
+                    return;
+
                 }
-            } else {
-                // Fallback si Supabase no está conectado
-                sessionStorage.setItem('admin_logged_in', 'true');
-                closeLoginModal();
-                openPinModal();
+
+
+                if(data === true){
+
+                    closeLoginModal();
+
+                    openPinModal();
+
+                    showToast("✅ Contraseña correcta","success");
+
+
+                }else{
+
+                    document
+                    .getElementById('loginError')
+                    .classList.remove('hidden');
+
+                }
+
+
+            } catch(e){
+
+                console.error(e);
+                showToast("Error inesperado","error");
+
             }
+
         }
 
         function openPinModal() {
@@ -1488,25 +1514,82 @@
         }
 
         async function handlePinVerification(event) {
+
             event.preventDefault();
+
+
             const pin = document.getElementById('adminPinInput').value;
-            document.getElementById('pinError').classList.add('hidden');
 
-            const inputPinHash = await hashPassword(pin);
-            let validPin = storedPinHash ? (inputPinHash === storedPinHash) : true;
 
-            if (validPin) {
-                isAdminLoggedIn = true;
-                sessionStorage.setItem('admin_logged_in', 'true');
-                closePinModal();
-                document.getElementById('adminBtnText').textContent = 'Panel Admin (Activo)';
-                document.getElementById('publishBtn').classList.remove('hidden');
-                document.getElementById('adminDashboard').classList.remove('hidden');
-                showToast('🔑 Acceso concedido', 'success');
-                renderNews();
-            } else {
-                document.getElementById('pinError').classList.remove('hidden');
+            document.getElementById('pinError')
+            .classList.add('hidden');
+
+
+            const { data, error } = await supabaseClient
+            .rpc('check_admin_pin', {
+                pin_input: pin
+            });
+
+
+            if(error){
+
+                console.error(error);
+
+                showToast(
+                "Error verificando PIN",
+                "error"
+                );
+
+                return;
+
             }
+
+
+            if(data === true){
+
+
+                isAdminLoggedIn = true;
+
+
+                sessionStorage.setItem(
+                'admin_logged_in',
+                'true'
+                );
+
+
+                closePinModal();
+
+
+                document.getElementById('adminBtnText')
+                .textContent='Panel Admin (Activo)';
+
+
+                document.getElementById('publishBtn')
+                .classList.remove('hidden');
+
+
+                document.getElementById('adminDashboard')
+                .classList.remove('hidden');
+
+
+                showToast(
+                '🔑 Acceso concedido',
+                'success'
+                );
+
+
+                renderNews();
+
+
+            }else{
+
+
+                document.getElementById('pinError')
+                .classList.remove('hidden');
+
+
+            }
+
         }
 
         function logoutAdmin() {
@@ -1539,6 +1622,12 @@
             document.getElementById('setupPinModal').classList.remove('flex');
         }
 
+        async function createPinHash(pin){const {data,error}=await supabaseClient.rpc('generate_pin_hash',{
+        pin_input:pin
+        });if(error) throw error;return data;
+
+        }
+
         async function handleSavePin(event) {
             event.preventDefault();
             const current = document.getElementById('currentPinInput').value;
@@ -1560,16 +1649,12 @@
             }
 
             if (next.length === 4 && /^\d{4}$/.test(next) && next === confirm) {
-                storedPinHash = await hashPassword(next);
-                localStorage.setItem('admin_pin_hash', storedPinHash);
+                
+                const {error} = await supabaseClient.from('admin_config').update({
+                pin_hash: await createPinHash(next)
+                }).eq('id',1);if(error){showToast("Error guardando PIN","error"
+                );return;
 
-                if (supabaseClient) {
-                    try {
-                        await supabaseClient.from('settings').upsert({
-                            id: 'global_config',
-                            pin_hash: storedPinHash
-                        }, { onConflict: 'id' });
-                    } catch(e) {}
                 }
 
                 successEl.classList.remove('hidden');
