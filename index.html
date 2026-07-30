@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="referrer" content="no-referrer">
+    <meta name="referrer" content="no-referrer-when-downgrade">
     <meta name="format-detection" content="telephone=no, address=no, email=no">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
@@ -418,19 +418,19 @@
                         </div>
                         <div id="imagePreviewContainer" class="hidden grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
                             <div class="relative cursor-pointer group" onclick="selectPreviewImage(0)">
-                                <img id="previewImg0" src="" class="w-full h-24 object-cover rounded-lg border-2 border-transparent group-hover:border-purple-500 transition shadow-sm">
+                                <img id="previewImg0" src="" class="w-full h-24 object-cover rounded-lg border-2 border-transparent group-hover:border-purple-500 transition shadow-sm bg-gray-200">
                                 <span class="absolute bottom-1 left-1 bg-black/60 text-white text-[9px] px-1.5 py-0.5 rounded">Opción 1</span>
                             </div>
                             <div class="relative cursor-pointer group" onclick="selectPreviewImage(1)">
-                                <img id="previewImg1" src="" class="w-full h-24 object-cover rounded-lg border-2 border-transparent group-hover:border-purple-500 transition shadow-sm">
+                                <img id="previewImg1" src="" class="w-full h-24 object-cover rounded-lg border-2 border-transparent group-hover:border-purple-500 transition shadow-sm bg-gray-200">
                                 <span class="absolute bottom-1 left-1 bg-black/60 text-white text-[9px] px-1.5 py-0.5 rounded">Opción 2</span>
                             </div>
                             <div class="relative cursor-pointer group" onclick="selectPreviewImage(2)">
-                                <img id="previewImg2" src="" class="w-full h-24 object-cover rounded-lg border-2 border-transparent group-hover:border-purple-500 transition shadow-sm">
+                                <img id="previewImg2" src="" class="w-full h-24 object-cover rounded-lg border-2 border-transparent group-hover:border-purple-500 transition shadow-sm bg-gray-200">
                                 <span class="absolute bottom-1 left-1 bg-black/60 text-white text-[9px] px-1.5 py-0.5 rounded">Opción 3</span>
                             </div>
                             <div class="relative cursor-pointer group" onclick="selectPreviewImage(3)">
-                                <img id="previewImg3" src="" class="w-full h-24 object-cover rounded-lg border-2 border-transparent group-hover:border-purple-500 transition shadow-sm">
+                                <img id="previewImg3" src="" class="w-full h-24 object-cover rounded-lg border-2 border-transparent group-hover:border-purple-500 transition shadow-sm bg-gray-200">
                                 <span class="absolute bottom-1 left-1 bg-black/60 text-white text-[9px] px-1.5 py-0.5 rounded">Opción 4</span>
                             </div>
                         </div>
@@ -753,17 +753,24 @@
 
         let previewImages = [];
 
-        /* GENERADOR DINÁMICO DE 4 IMÁGENES REALISTAS BASADAS EN TÍTULO / PALABRA CLAVE */
+        /* GENERADOR DINÁMICO DE 4 IMÁGENES OPTIMIZADO CON FALLBACK */
         function generate4TopicImages(title, keyword, category) {
-            const searchTerm = keyword.trim() || title.trim() || category;
-            const cleanSearch = searchTerm.replace(/[^\w\s\u00C0-\u017F]/gi, '').trim();
+            const rawTerm = keyword.trim() || title.trim() || category;
+            // Limpia caracteres especiales para evitar errores de codificación en la URL
+            const cleanSearch = rawTerm.replace(/[^a-zA-Z0-9\s]/g, '').trim() || 'noticias';
             const baseTimestamp = Date.now();
             
             const results = [];
             for (let i = 0; i < 4; i++) {
-                const seed = baseTimestamp + (i * 9999);
-                const prompt = encodeURIComponent(`news photo of ${cleanSearch}, realistic photojournalism style, high definition, detailed`);
-                results.push(`https://image.pollinations.ai/prompt/${prompt}?width=800&height=500&nologo=true&seed=${seed}`);
+                const seed = baseTimestamp + (i * 777);
+                const encodedPrompt = encodeURIComponent(`photojournalism ${cleanSearch} news scene detailed HD`);
+                
+                // URL principal con Pollinations AI
+                const primaryUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=800&height=500&seed=${seed}&nologo=true`;
+                // URL de respaldo asegurada en alta resolución
+                const fallbackUrl = `https://picsum.photos/seed/${seed}/800/500`;
+
+                results.push({ primary: primaryUrl, fallback: fallbackUrl });
             }
             return results;
         }
@@ -778,23 +785,40 @@
                 return;
             }
 
-            showToast('⏳ Generando 4 opciones de imagen basadas en el tema...', 'info');
+            showToast('⏳ Generando opciones de imagen...', 'info');
 
             previewImages = generate4TopicImages(title, keyword, category);
             
             const container = document.getElementById('imagePreviewContainer');
-            for (let i = 0; i < 4; i++) {
-                const el = document.getElementById(`previewImg${i}`);
-                if (el) el.src = previewImages[i];
-            }
             container.classList.remove('hidden');
+
+            for (let i = 0; i < 4; i++) {
+                const imgEl = document.getElementById(`previewImg${i}`);
+                if (imgEl) {
+                    imgEl.classList.add('opacity-50');
+                    // Carga primero la opción IA
+                    imgEl.src = previewImages[i].primary;
+                    
+                    // Si falla o tarda, cambia automáticamente al respaldo sin mostrar ícono roto
+                    imgEl.onerror = function() {
+                        this.onerror = null;
+                        this.src = previewImages[i].fallback;
+                        this.classList.remove('opacity-50');
+                    };
+
+                    imgEl.onload = function() {
+                        this.classList.remove('opacity-50');
+                    };
+                }
+            }
             if (window.lucide) lucide.createIcons();
         }
 
         function selectPreviewImage(index) {
-            if (!previewImages[index]) return;
-            document.getElementById('inputImageUrl').value = previewImages[index];
-            showToast('✅ Imagen elegida correctamente', 'success');
+            const imgEl = document.getElementById(`previewImg${index}`);
+            if (!imgEl || !imgEl.src) return;
+            document.getElementById('inputImageUrl').value = imgEl.src;
+            showToast('✅ Imagen seleccionada correctamente', 'success');
             document.getElementById('imagePreviewContainer').classList.add('hidden');
         }
 
@@ -878,7 +902,7 @@
             document.getElementById('inputContent').value = parsed.content;
 
             const autoImgs = generate4TopicImages(parsed.title, parsed.keyword, parsed.category);
-            document.getElementById('inputImageUrl').value = autoImgs[0];
+            document.getElementById('inputImageUrl').value = autoImgs[0].primary;
 
             showToast('🤖 ¡Noticia estructurada con IA y palabra clave!', 'success');
         }
@@ -956,8 +980,8 @@
             if (featuredItem && query === '' && selectedCategory === 'todas') {
                 featuredContainer.innerHTML = `
                     <div class="bg-white rounded-3xl p-4 sm:p-6 shadow-xl border border-gray-100 grid grid-cols-1 lg:grid-cols-2 gap-6 items-center cursor-pointer" onclick="openArticle('${featuredItem.id}')">
-                        <div class="overflow-hidden rounded-2xl">
-                            <img src="${escapeHTML(featuredItem.mediaUrl)}" alt="Destacada" class="w-full h-64 sm:h-96 object-cover rounded-2xl shadow-lg hover:scale-105 transition duration-500">
+                        <div class="overflow-hidden rounded-2xl bg-gray-100">
+                            <img src="${escapeHTML(featuredItem.mediaUrl)}" onerror="this.src='https://picsum.photos/seed/news/800/500'" alt="Destacada" class="w-full h-64 sm:h-96 object-cover rounded-2xl shadow-lg hover:scale-105 transition duration-500">
                         </div>
                         <div class="space-y-3">
                             <div class="flex items-center gap-2">
@@ -977,8 +1001,8 @@
             filtered.forEach(item => {
                 const cardHtml = `
                     <div class="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition duration-300 border border-gray-100 flex flex-col group cursor-pointer" onclick="openArticle('${item.id}')">
-                        <div class="relative overflow-hidden">
-                            <img src="${escapeHTML(item.mediaUrl)}" alt="Noticia" class="w-full h-48 object-cover group-hover:scale-105 transition duration-300">
+                        <div class="relative overflow-hidden bg-gray-100">
+                            <img src="${escapeHTML(item.mediaUrl)}" onerror="this.src='https://picsum.photos/seed/${item.id}/800/500'" alt="Noticia" class="w-full h-48 object-cover group-hover:scale-105 transition duration-300">
                             <span class="absolute top-3 left-3 bg-slate-900/90 backdrop-blur-sm text-white text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider">${escapeHTML(item.category)}</span>
                         </div>
                         <div class="p-4 flex-grow flex flex-col justify-between space-y-3">
@@ -1044,7 +1068,7 @@
             document.getElementById('articleSummary').textContent = article.summary;
 
             const mediaContainer = document.getElementById('mediaContainer');
-            mediaContainer.innerHTML = `<img src="${escapeHTML(article.mediaUrl)}" alt="Noticia" class="w-full object-cover max-h-[400px] rounded-xl">`;
+            mediaContainer.innerHTML = `<img src="${escapeHTML(article.mediaUrl)}" onerror="this.src='https://picsum.photos/seed/${article.id}/800/500'" alt="Noticia" class="w-full object-cover max-h-[400px] rounded-xl">`;
 
             const contentContainer = document.getElementById('articleContent');
             contentContainer.innerHTML = article.content.split('\n\n').map(p => `<p class="leading-relaxed text-gray-800">${escapeHTML(p)}</p>`).join('');
@@ -1123,7 +1147,7 @@
             let mediaUrl = uploadedBase64Media || document.getElementById('inputImageUrl').value.trim();
             if (!mediaUrl) {
                 const imgs = generate4TopicImages(title, keyword, category);
-                mediaUrl = imgs[0];
+                mediaUrl = imgs[0].primary;
             }
 
             const now = new Date();
