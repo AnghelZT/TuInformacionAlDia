@@ -612,7 +612,6 @@
     <script>
         const SUPABASE_URL = "https://kvqcklxcobkosuhdsibv.supabase.co";
         const SUPABASE_ANON_KEY = "sb_publishable_mPMI3XL-bS5M4mfzM009gw_xOw4RXEZ";
-        const ADMIN_PASS = "Kelys03kg++Aranza..";
         let supabaseClient = null;
         let isAdminLoggedIn = sessionStorage.getItem('admin_logged_in') === 'true';
         let pendingDeleteId = null;
@@ -620,8 +619,15 @@
         let selectedCategory = 'todas';
         let newsList = [];
         
-        const DEFAULT_PIN = "2711";
         let storedPinHash = localStorage.getItem('admin_pin_hash') || '';
+
+        // Función Criptográfica SHA-256 para PIN y Contraseñas
+        async function hashPassword(text) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(text);
+            const hash = await crypto.subtle.digest('SHA-256', data);
+            return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
 
         function initSupabase() {
             try {
@@ -876,7 +882,7 @@
             
             const pinStatusText = document.getElementById('pinStatusText');
             if (pinStatusText) {
-                pinStatusText.textContent = storedPinHash ? 'PIN Personalizado Configurado' : 'PIN Predeterminado (2711)';
+                pinStatusText.textContent = storedPinHash ? 'PIN Personalizado Configurado' : 'PIN No Configurado';
             }
 
             if (isAdminLoggedIn) {
@@ -1272,9 +1278,20 @@
                     showToast('⚠️ Configura el Bot Token y Chat ID de Telegram en el Panel Admin.', 'warning');
                 } else {
                     try {
-                        const tgCaption = `<b>${article.title}</b>\n\n${article.summary}\n\n📂 <b>Categoría:</b> ${article.category}\n👤 <b>Por:</b> ${article.source} - ${article.date}\n\n🌐 <b>Leer noticia completa:</b> ${articleUrl}`;
+                        const tgCaption = `
+📰 <b>${article.title}</b>${article.summary}
+
+📂 <b>Categoría:</b> ${article.category}
+
+✍️ <b>Fuente:</b> ${article.source}
+
+📅 ${article.date}
+
+🔗 <b>Leer completa:</b> ${articleUrl}
+`;
                         
-                        let hasHttpImage = article.mediaUrl && article.mediaUrl.startsWith('http');
+                        let hasHttpImage = article.mediaUrl && 
+                        (article.mediaUrl.startsWith('http://') || article.mediaUrl.startsWith('https://'));
                         
                         if (hasHttpImage) {
                             const resPhoto = await fetch(`https://api.telegram.org/bot${tgToken}/sendPhoto`, {
@@ -1282,7 +1299,7 @@
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
                                     chat_id: tgChat,
-                                    photo: article.mediaUrl,
+                                    photo: String(article.mediaUrl),
                                     caption: tgCaption,
                                     parse_mode: 'HTML',
                                     disable_web_page_preview: true
@@ -1330,28 +1347,19 @@
                     showToast('⚠️ Configura la URL del Webhook de Make en el Panel Admin.', 'warning');
                 } else {
                     try {
-                        const formattedMessage = `${article.title}\n\n${article.summary}\n\nPor: ${article.source} - ${article.date}\n\nLeer noticia completa: ${articleUrl}`;
-
                         const res = await fetch(fbWebhook, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
-                                id: article.id,
                                 title: article.title,
-                                summary: article.summary,
-                                content: article.content,
+                                message: `${article.title}${article.summary}\n\nLeer noticia completa: ${articleUrl}`,
+                                description: article.summary,
+                                link: articleUrl,
+                                image: article.mediaUrl,
+                                picture: article.mediaUrl,
                                 category: article.category,
                                 source: article.source,
-                                mediaUrl: article.mediaUrl,
-                                photo_url: article.mediaUrl,
-                                image_url: article.mediaUrl,
-                                picture: article.mediaUrl,
-                                siteUrl: articleUrl,
-                                link: articleUrl,
-                                url: articleUrl,
-                                date: article.date,
-                                message: formattedMessage,
-                                caption: `${article.source} - ${article.date}`
+                                date: article.date
                             })
                         });
 
@@ -1435,14 +1443,35 @@
             document.getElementById('loginModal').classList.remove('flex');
         }
 
-        function handleAdminLogin(event) {
+        async function handleAdminLogin(event) {
             event.preventDefault();
             const pass = document.getElementById('adminPassword').value;
-            if (pass === ADMIN_PASS) {
+            
+            if (supabaseClient) {
+                try {
+                    const passHash = await hashPassword(pass);
+                    const { data, error } = await supabaseClient
+                        .from('admins')
+                        .select('*')
+                        .eq('password_hash', passHash)
+                        .single();
+
+                    if (data) {
+                        sessionStorage.setItem('admin_logged_in', 'true');
+                        closeLoginModal();
+                        openPinModal();
+                    } else {
+                        document.getElementById('loginError').classList.remove('hidden');
+                    }
+                } catch(err) {
+                    console.error("Error al autenticar:", err);
+                    document.getElementById('loginError').classList.remove('hidden');
+                }
+            } else {
+                // Fallback si Supabase no está conectado
+                sessionStorage.setItem('admin_logged_in', 'true');
                 closeLoginModal();
                 openPinModal();
-            } else {
-                document.getElementById('loginError').classList.remove('hidden');
             }
         }
 
@@ -1458,12 +1487,13 @@
             document.getElementById('pinModal').classList.remove('flex');
         }
 
-        function handlePinVerification(event) {
+        async function handlePinVerification(event) {
             event.preventDefault();
             const pin = document.getElementById('adminPinInput').value;
             document.getElementById('pinError').classList.add('hidden');
 
-            let validPin = (pin === DEFAULT_PIN) || (storedPinHash && btoa(pin) === storedPinHash);
+            const inputPinHash = await hashPassword(pin);
+            let validPin = storedPinHash ? (inputPinHash === storedPinHash) : true;
 
             if (validPin) {
                 isAdminLoggedIn = true;
@@ -1521,7 +1551,8 @@
             successEl.classList.add('hidden');
 
             if (storedPinHash && current) {
-                if (btoa(current) !== storedPinHash && current !== DEFAULT_PIN) {
+                const currentHash = await hashPassword(current);
+                if (currentHash !== storedPinHash) {
                     errorEl.textContent = 'El PIN actual ingresado no es correcto.';
                     errorEl.classList.remove('hidden');
                     return;
@@ -1529,7 +1560,7 @@
             }
 
             if (next.length === 4 && /^\d{4}$/.test(next) && next === confirm) {
-                storedPinHash = btoa(next);
+                storedPinHash = await hashPassword(next);
                 localStorage.setItem('admin_pin_hash', storedPinHash);
 
                 if (supabaseClient) {
