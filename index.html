@@ -2,7 +2,14 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
+    <meta name="format-detection" content="telephone=no, address=no, email=no">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://unpkg.com https://*.supabase.co https://generativelanguage.googleapis.com https://api.telegram.org; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://unpkg.com; img-src 'self' data: https:; frame-src 'self' https://www.youtube.com; connect-src 'self' https://kvqcklxcobkosuhdsibv.supabase.co https://api.telegram.org https://generativelanguage.googleapis.com; font-src 'self' data:;">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Tu Información Al Día - Portal de Noticias</title>
     <!-- Open Graph Meta Tags para Facebook -->
     <meta property="og:title" content="Tu Información Al Día - Portal de Noticias">
@@ -18,9 +25,9 @@
     <meta name="twitter:description" content="Periodismo Independiente y Veraz - Mantente informado con las últimas noticias.">
     <meta name="twitter:image" content="https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=1200&q=80">
     <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com" crossorigin="anonymous"></script>
     <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/lucide@latest" crossorigin="anonymous"></script>
     <style>
         .line-clamp-2 {
             display: -webkit-box;
@@ -466,7 +473,10 @@
         </div>
     </div>
 
-
+    <!-- Modal Inicio de Sesión Admin -->
+    <div id="loginModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl text-center border border-gray-100">
+            <div class="mb-4">
                 <div class="bg-slate-900 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2 text-emerald-400">
                     <i data-lucide="lock" class="w-6 h-6"></i>
                 </div>
@@ -474,9 +484,9 @@
                 <p class="text-xs text-gray-500">Introduce la contraseña de control del portal.</p>
             </div>
 
-            <form onsubmit="handleAdminLogin(event)" class="space-y-3">
+            <form onsubmit="handleAdminLogin(event)" method="post" autocomplete="off" class="space-y-3">
                 <div>
-                    <input type="password" id="adminPassword" required placeholder="Contraseña de administrador" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-900 focus:outline-none">
+                    <input type="password" id="adminPassword" required autocomplete="new-password" placeholder="Contraseña de administrador" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-900 focus:outline-none">
                 </div>
                 <p id="loginError" class="text-xs text-red-600 font-semibold hidden text-center">Clave incorrecta. Inténtalo de nuevo.</p>
                 <div class="flex justify-end space-x-2">
@@ -586,7 +596,7 @@
 
 <!-- Lógica de Funcionamiento -->
     <!-- Supabase SDK -->
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2" crossorigin="anonymous"></script>
 
     <script>
         // 🔐 CONFIGURACIÓN SUPABASE
@@ -605,7 +615,7 @@
         
         // 🔐 2FA - Variables de PIN
         const DEFAULT_PIN = "2711";
-        let adminPinConfigured = localStorage.getItem('admin_pin_configured') === 'true' || true; // Siempre activo por defecto
+        let adminPinConfigured = true;
         let pinLoginStep = false;
         let pinVerified = sessionStorage.getItem('admin_pin_verified') === 'true';
         let tempAdminPassword = '';
@@ -1615,7 +1625,7 @@ function updateOpenGraphTags(article) {
             if (article.mediaType === 'video') {
                 const embedUrl = getYoutubeEmbedUrl(article.mediaUrl);
                 if (embedUrl) {
-                    mediaContainer.innerHTML = `<iframe src="${embedUrl}" class="w-full h-80 sm:h-[400px] rounded-xl" frameborder="0" allowfullscreen></iframe>`;
+                    mediaContainer.innerHTML = `<iframe src="${embedUrl}" class="w-full h-80 sm:h-[400px] rounded-xl" frameborder="0" allowfullscreen sandbox="allow-scripts allow-same-origin allow-presentation" allow="camera 'none'; microphone 'none'; geolocation 'none'"></iframe>`;
                 } else {
                     mediaContainer.innerHTML = `<video src="${escapeHTML(article.mediaUrl)}" controls class="w-full max-h-[400px] rounded-xl"></video>`;
                 }
@@ -2058,6 +2068,9 @@ function confirmDelete() {
             if (!isAdminLoggedIn) {
                 document.getElementById('loginModal').classList.remove('hidden');
                 document.getElementById('loginModal').classList.add('flex');
+                document.getElementById('adminPassword').value = '';
+                document.getElementById('loginError').classList.add('hidden');
+                setTimeout(() => document.getElementById('adminPassword').focus(), 200);
             } else {
                 const dash = document.getElementById('adminDashboard');
                 dash.classList.toggle('hidden');
@@ -2068,64 +2081,7 @@ function confirmDelete() {
             document.getElementById('loginModal').classList.add('hidden');
             document.getElementById('loginModal').classList.remove('flex');
             document.getElementById('loginError').classList.add('hidden');
-        }
-
-function handleAdminLogin(e) {
-            e.preventDefault();
-            const now = Date.now();
-            
-            // Verificar si está bloqueado
-            if (loginBlockedUntil > now) {
-                const remainingSeconds = Math.ceil((loginBlockedUntil - now) / 1000);
-                document.getElementById('loginError').textContent = `🔒 Bloqueado. Espera ${remainingSeconds} segundos.`;
-                document.getElementById('loginError').classList.remove('hidden');
-                // Detectar como ataque
-                detectAttack('login_blocked', 'Intento de login durante bloqueo');
-                return;
-            }
-
-            // Detectar múltiples intentos fallidos como posible ataque
-            if (adminLoginAttempts >= 2) {
-                detectAttack('brute_force', `Intento #${adminLoginAttempts + 1} de login fallido`);
-            }
-
-            const pass = document.getElementById('adminPassword').value;
-            if (pass === ADMIN_PASS) {
-                isAdminLoggedIn = true;
-                sessionStorage.setItem('admin_logged_in', 'true');
-                adminLoginAttempts = 0;
-                closeLoginModal();
-                document.getElementById('adminBtnText').textContent = 'Panel Admin (Activo)';
-                document.getElementById('adminDashboard').classList.remove('hidden');
-                document.getElementById('publishBtn').classList.remove('hidden');
-                logAuditEvent('login_exitoso', 'Inicio de sesión admin');
-                showToast('🔑 Sesión de Administrador iniciada.', 'success');
-            } else {
-                adminLoginAttempts++;
-                const remaining = MAX_LOGIN_ATTEMPTS - adminLoginAttempts;
-                
-                if (remaining <= 0) {
-                    // Bloquear por 60 segundos después de 3 intentos fallidos
-                    loginBlockedUntil = Date.now() + 60000;
-                    document.getElementById('loginError').textContent = '🔒 Demasiados intentos. Bloqueado 60 segundos.';
-                    adminLoginAttempts = 0;
-                    detectAttack('login_blocked_60s', '3 intentos fallidos - bloqueo 60s');
-                } else {
-                    document.getElementById('loginError').textContent = `❌ Clave incorrecta. Te quedan ${remaining} intento(s).`;
-                }
-                document.getElementById('loginError').classList.remove('hidden');
-                document.getElementById('adminPassword').value = '';
-                logAuditEvent('login_fallido', `Intento ${adminLoginAttempts}`);
-            }
-        }
-
-function logoutAdmin() {
-            isAdminLoggedIn = false;
-            sessionStorage.removeItem('admin_logged_in');
-            document.getElementById('adminBtnText').textContent = 'Panel Admin';
-            document.getElementById('adminDashboard').classList.add('hidden');
-            document.getElementById('publishBtn').classList.add('hidden');
-            showToast('🔒 Sesión del Panel Admin cerrada.', 'info');
+            document.getElementById('adminPassword').value = '';
         }
 
         // 🔐 Funciones SHA-256 para hash del PIN
@@ -2444,32 +2400,16 @@ function logoutAdmin() {
             }, 2000);
         }
 
-        // ⚙️ Modificar saveSocialSettings para también guardar en la nube
+        // ⚙️ saveSocialSettings - Guardar config y también subir a nube
         const originalSaveSocialSettings = saveSocialSettings;
         saveSocialSettings = function() {
-            const token = document.getElementById('cfgTelegramToken').value.trim();
-            const chatId = document.getElementById('cfgTelegramChatId').value.trim();
-            const webhook = document.getElementById('cfgFacebookWebhook').value.trim();
-            const siteUrl = document.getElementById('cfgSiteUrl').value.trim();
-            const aiProvider = document.getElementById('cfgAiProvider').value;
-            const aiApiKey = document.getElementById('cfgAiApiKey').value.trim();
-
-            localStorage.setItem('social_tg_token', token);
-            localStorage.setItem('social_tg_chat', chatId);
-            localStorage.setItem('social_fb_webhook', webhook);
-            localStorage.setItem('social_site_url', siteUrl);
-            localStorage.setItem('ai_provider', aiProvider);
-            localStorage.setItem('ai_api_key', aiApiKey);
-
-            // Guardar en la nube
+            originalSaveSocialSettings();
             saveAdminSettingsToCloud();
-
             showToast('✅ Configuración guardada correctamente en local y nube.', 'success');
         };
 
-        // 🔄 Modificar handleAdminLogin para incluir verificación de PIN
-        const originalHandleAdminLogin = handleAdminLogin;
-        handleAdminLogin = function(e) {
+        // 🔄 handleAdminLogin con verificación de PIN 2FA
+        function handleAdminLogin(e) {
             e.preventDefault();
             const now = Date.now();
             
@@ -2489,19 +2429,17 @@ function logoutAdmin() {
 
             const pass = document.getElementById('adminPassword').value;
             if (pass === ADMIN_PASS) {
-                // ✅ Contraseña correcta - verificar si hay PIN configurado
+                // ✅ Contraseña correcta - verificar PIN
                 adminLoginAttempts = 0;
                 
-                // Primero cargar PIN desde la nube
                 loadAdminPinFromCloud().then(() => {
                     if (adminPinConfigured && storedPinHash) {
-                        // Tiene PIN configurado - solicitar 2FA
                         pinLoginStep = true;
                         tempAdminPassword = pass;
                         closeLoginModal();
                         showPinModal();
                     } else {
-                        // No hay PIN configurado - acceso directo (pero recomendamos configurar)
+                        // Sin PIN configurado - acceso directo
                         isAdminLoggedIn = true;
                         sessionStorage.setItem('admin_logged_in', 'true');
                         closeLoginModal();
@@ -2509,7 +2447,6 @@ function logoutAdmin() {
                         document.getElementById('adminDashboard').classList.remove('hidden');
                         document.getElementById('publishBtn').classList.remove('hidden');
                         
-                        // Cargar settings desde la nube
                         loadAdminSettingsFromCloud().then(() => {
                             loadSocialSettings();
                         });
@@ -2536,9 +2473,8 @@ function logoutAdmin() {
             }
         };
 
-        // 🔄 Modificar logoutAdmin para también limpiar verificación PIN
-        const originalLogoutAdmin = logoutAdmin;
-        logoutAdmin = function() {
+        // 🔄 logoutAdmin con limpieza de PIN
+        function logoutAdmin() {
             isAdminLoggedIn = false;
             pinVerified = false;
             pinLoginStep = false;
@@ -2549,7 +2485,7 @@ function logoutAdmin() {
             document.getElementById('adminDashboard').classList.add('hidden');
             document.getElementById('publishBtn').classList.add('hidden');
             showToast('🔒 Sesión del Panel Admin cerrada.', 'info');
-        };
+        }
 
         // 📊 Función para actualizar el estado del PIN en el Panel de Seguridad
         function updatePinStatusText() {
@@ -2596,23 +2532,19 @@ function logoutAdmin() {
             }
         }
 
-        // 🔄 Modificar finalizeInit para restaurar sesión con PIN
-        const originalFinalizeInit = finalizeInit;
-        finalizeInit = function() {
+        // 🔄 finalizeInit con restauración de sesión y PIN
+        function finalizeInit() {
             loadSocialSettings();
             renderNews();
             
             // Cargar PIN desde la nube al inicio
             loadAdminPinFromCloud().then(() => {
-                // Actualizar estado del PIN en el panel de seguridad
                 updatePinStatusText();
             });
             
             // Restaurar sesión de administrador si estaba activa
             if (isAdminLoggedIn) {
-                // Verificar si necesita PIN para esta sesión
                 if (adminPinConfigured && !pinVerified) {
-                    // Tiene PIN pero no lo ha verificado en esta sesión, necesita re-login
                     isAdminLoggedIn = false;
                     sessionStorage.removeItem('admin_logged_in');
                     sessionStorage.removeItem('admin_pin_verified');
