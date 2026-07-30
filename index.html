@@ -604,10 +604,12 @@
         let loginBlockedUntil = 0;
         
         // 🔐 2FA - Variables de PIN
-        let adminPinConfigured = localStorage.getItem('admin_pin_configured') === 'true';
+        const DEFAULT_PIN = "2711";
+        let adminPinConfigured = localStorage.getItem('admin_pin_configured') === 'true' || true; // Siempre activo por defecto
         let pinLoginStep = false;
         let pinVerified = sessionStorage.getItem('admin_pin_verified') === 'true';
         let tempAdminPassword = '';
+        let storedPinHash = localStorage.getItem('admin_pin_hash') || '';
 
         // 🚀 Inicializar Supabase
         function initSupabase() {
@@ -2224,9 +2226,21 @@ function logoutAdmin() {
             }
         }
 
-        // ☁️ Cargar PIN hash desde Supabase (nube)
-        let storedPinHash = localStorage.getItem('admin_pin_hash') || '';
+        // 🔑 Inicializar PIN por defecto (2711) si no hay uno configurado
+        async function ensureDefaultPin() {
+            if (!storedPinHash) {
+                const defaultHash = await hashPin(DEFAULT_PIN);
+                storedPinHash = defaultHash;
+                adminPinConfigured = true;
+                localStorage.setItem('admin_pin_hash', defaultHash);
+                localStorage.setItem('admin_pin_configured', 'true');
+                // Intentar guardar en la nube también
+                saveAdminPinToCloud(defaultHash);
+                console.log('✅ PIN por defecto 2711 configurado automáticamente');
+            }
+        }
 
+        // ☁️ Cargar PIN hash desde Supabase (nube)
         async function loadAdminPinFromCloud() {
             // Primero verificar localStorage como respaldo rápido
             if (localStorage.getItem('admin_pin_hash')) {
@@ -2234,7 +2248,10 @@ function logoutAdmin() {
                 adminPinConfigured = localStorage.getItem('admin_pin_configured') === 'true';
             }
             
-            if (!supabaseClient) return;
+            if (!supabaseClient) {
+                await ensureDefaultPin();
+                return;
+            }
             
             try {
                 const { data, error } = await supabaseClient
@@ -2254,11 +2271,15 @@ function logoutAdmin() {
                         localStorage.setItem('admin_pin_hash', pinData.pin_hash);
                         localStorage.setItem('admin_pin_configured', 'true');
                         console.log('✅ PIN cargado desde la nube');
+                        return;
                     }
                 }
             } catch(e) {
                 console.warn('⚠️ Error cargando PIN de la nube, usando localStorage:', e.message || e);
             }
+            
+            // Si no se encontró PIN en ningún lado, configurar el predeterminado 2711
+            await ensureDefaultPin();
         }
 
         // 🪪 Mostrar modal de verificación de PIN
