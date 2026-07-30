@@ -183,7 +183,7 @@
 
                 <div class="flex justify-end pt-2">
                     <button onclick="saveSocialSettings()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded text-xs font-bold transition">
-                        Guardar Configuración
+                        Guardar Configuración en la Nube
                     </button>
                 </div>
             </div>
@@ -233,7 +233,7 @@
                         <i data-lucide="key-round" class="w-4 h-4 text-purple-400"></i>
                         <span class="text-[11px] text-gray-300">
                             <strong class="text-purple-300">2FA:</strong> 
-                            <span id="pinStatusText">PIN Activo</span>
+                            <span id="pinStatusText">Cargando estado...</span>
                         </span>
                     </div>
                     <button onclick="showSetupPinFromAdmin()" class="bg-purple-600/40 hover:bg-purple-600/60 text-purple-200 px-2.5 py-1 rounded text-[10px] font-bold transition text-xs">
@@ -753,10 +753,8 @@
 
         let previewImages = [];
 
-        /* GENERADOR DINÁMICO DE 4 IMÁGENES OPTIMIZADO CON FALLBACK */
         function generate4TopicImages(title, keyword, category) {
             const rawTerm = keyword.trim() || title.trim() || category;
-            // Limpia caracteres especiales para evitar errores de codificación en la URL
             const cleanSearch = rawTerm.replace(/[^a-zA-Z0-9\s]/g, '').trim() || 'noticias';
             const baseTimestamp = Date.now();
             
@@ -765,9 +763,7 @@
                 const seed = baseTimestamp + (i * 777);
                 const encodedPrompt = encodeURIComponent(`photojournalism ${cleanSearch} news scene detailed HD`);
                 
-                // URL principal con Pollinations AI
                 const primaryUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=800&height=500&seed=${seed}&nologo=true`;
-                // URL de respaldo asegurada en alta resolución
                 const fallbackUrl = `https://picsum.photos/seed/${seed}/800/500`;
 
                 results.push({ primary: primaryUrl, fallback: fallbackUrl });
@@ -796,10 +792,8 @@
                 const imgEl = document.getElementById(`previewImg${i}`);
                 if (imgEl) {
                     imgEl.classList.add('opacity-50');
-                    // Carga primero la opción IA
                     imgEl.src = previewImages[i].primary;
                     
-                    // Si falla o tarda, cambia automáticamente al respaldo sin mostrar ícono roto
                     imgEl.onerror = function() {
                         this.onerror = null;
                         this.src = previewImages[i].fallback;
@@ -824,17 +818,17 @@
 
         function initApp() {
             initSupabase();
-            loadNewsFromDB().then(cloudData => {
+            loadNewsFromDB().then(async cloudData => {
                 if (cloudData && cloudData.length > 0) {
                     newsList = cloudData;
                     saveToLocalStorage();
                 } else {
                     loadFromLocalStorage();
                 }
-                finalizeInit();
-            }).catch(() => {
+                await finalizeInit();
+            }).catch(async () => {
                 loadFromLocalStorage();
-                finalizeInit();
+                await finalizeInit();
             });
         }
         
@@ -848,8 +842,8 @@
             }
         }
         
-        function finalizeInit() {
-            loadSocialSettings();
+        async function finalizeInit() {
+            await loadSocialSettings();
             renderNews();
             
             const pinStatusText = document.getElementById('pinStatusText');
@@ -868,23 +862,84 @@
             try { localStorage.setItem('prensa_digital_news', JSON.stringify(newsList)); } catch (e) {}
         }
 
-        function loadSocialSettings() {
-            document.getElementById('cfgTelegramToken').value = localStorage.getItem('social_tg_token') || '';
-            document.getElementById('cfgTelegramChatId').value = localStorage.getItem('social_tg_chat') || '';
-            document.getElementById('cfgFacebookWebhook').value = localStorage.getItem('social_fb_webhook') || '';
-            document.getElementById('cfgSiteUrl').value = localStorage.getItem('social_site_url') || '';
-            document.getElementById('cfgAiProvider').value = localStorage.getItem('ai_provider') || 'free';
-            document.getElementById('cfgAiApiKey').value = localStorage.getItem('ai_api_key') || '';
+        // CARGAR CONFIGURACIÓN DESDE SUPABASE
+        async function loadSocialSettings() {
+            let config = null;
+            if (supabaseClient) {
+                try {
+                    const { data, error } = await supabaseClient
+                        .from('settings')
+                        .select('*')
+                        .eq('id', 'global_config')
+                        .maybeSingle();
+                    if (!error && data) {
+                        config = data;
+                    }
+                } catch(e) {
+                    console.warn('⚠️ Usando respaldo de configuración local');
+                }
+            }
+
+            if (config) {
+                document.getElementById('cfgTelegramToken').value = config.telegram_token || '';
+                document.getElementById('cfgTelegramChatId').value = config.telegram_chat_id || '';
+                document.getElementById('cfgFacebookWebhook').value = config.facebook_webhook || '';
+                document.getElementById('cfgSiteUrl').value = config.site_url || '';
+                document.getElementById('cfgAiProvider').value = config.ai_provider || 'free';
+                document.getElementById('cfgAiApiKey').value = config.ai_api_key || '';
+                if (config.pin_hash) {
+                    storedPinHash = config.pin_hash;
+                    localStorage.setItem('admin_pin_hash', storedPinHash);
+                }
+            } else {
+                document.getElementById('cfgTelegramToken').value = localStorage.getItem('social_tg_token') || '';
+                document.getElementById('cfgTelegramChatId').value = localStorage.getItem('social_tg_chat') || '';
+                document.getElementById('cfgFacebookWebhook').value = localStorage.getItem('social_fb_webhook') || '';
+                document.getElementById('cfgSiteUrl').value = localStorage.getItem('social_site_url') || '';
+                document.getElementById('cfgAiProvider').value = localStorage.getItem('ai_provider') || 'free';
+                document.getElementById('cfgAiApiKey').value = localStorage.getItem('ai_api_key') || '';
+            }
         }
 
-        function saveSocialSettings() {
-            localStorage.setItem('social_tg_token', document.getElementById('cfgTelegramToken').value.trim());
-            localStorage.setItem('social_tg_chat', document.getElementById('cfgTelegramChatId').value.trim());
-            localStorage.setItem('social_fb_webhook', document.getElementById('cfgFacebookWebhook').value.trim());
-            localStorage.setItem('social_site_url', document.getElementById('cfgSiteUrl').value.trim());
-            localStorage.setItem('ai_provider', document.getElementById('cfgAiProvider').value);
-            localStorage.setItem('ai_api_key', document.getElementById('cfgAiApiKey').value.trim());
-            showToast('✅ Configuración guardada.', 'success');
+        // GUARDAR CONFIGURACIÓN EN SUPABASE
+        async function saveSocialSettings() {
+            const tgToken = document.getElementById('cfgTelegramToken').value.trim();
+            const tgChat = document.getElementById('cfgTelegramChatId').value.trim();
+            const fbWebhook = document.getElementById('cfgFacebookWebhook').value.trim();
+            const siteUrl = document.getElementById('cfgSiteUrl').value.trim();
+            const aiProvider = document.getElementById('cfgAiProvider').value;
+            const aiApiKey = document.getElementById('cfgAiApiKey').value.trim();
+
+            localStorage.setItem('social_tg_token', tgToken);
+            localStorage.setItem('social_tg_chat', tgChat);
+            localStorage.setItem('social_fb_webhook', fbWebhook);
+            localStorage.setItem('social_site_url', siteUrl);
+            localStorage.setItem('ai_provider', aiProvider);
+            localStorage.setItem('ai_api_key', aiApiKey);
+
+            if (supabaseClient) {
+                try {
+                    const { error } = await supabaseClient
+                        .from('settings')
+                        .upsert({
+                            id: 'global_config',
+                            telegram_token: tgToken,
+                            telegram_chat_id: tgChat,
+                            facebook_webhook: fbWebhook,
+                            site_url: siteUrl,
+                            ai_provider: aiProvider,
+                            ai_api_key: aiApiKey,
+                            pin_hash: storedPinHash
+                        }, { onConflict: 'id' });
+                    if (error) throw error;
+                    showToast('✅ Configuración guardada en la nube para todos los dispositivos.', 'success');
+                } catch(e) {
+                    console.error('Error guardando en Supabase:', e);
+                    showToast('⚠️ Guardado en este navegador (Crea la tabla settings en Supabase para sincronizar entre dispositivos).', 'warning');
+                }
+            } else {
+                showToast('✅ Configuración guardada localmente.', 'success');
+            }
         }
 
         async function generateNewsWithAI() {
@@ -1133,6 +1188,94 @@
             modal.classList.remove('flex');
         }
 
+        // DIFUSIÓN AUTOMÁTICA
+        async function publishToSocialNetworks(article) {
+            const tgToken = (document.getElementById('cfgTelegramToken')?.value || localStorage.getItem('social_tg_token'))?.trim();
+            const tgChat = (document.getElementById('cfgTelegramChatId')?.value || localStorage.getItem('social_tg_chat'))?.trim();
+            const fbWebhook = (document.getElementById('cfgFacebookWebhook')?.value || localStorage.getItem('social_fb_webhook'))?.trim();
+            const siteUrl = (document.getElementById('cfgSiteUrl')?.value || localStorage.getItem('social_site_url'))?.trim() || window.location.origin;
+
+            const isTgChecked = document.getElementById('shareTelegram')?.checked;
+            const isFbChecked = document.getElementById('shareFacebook')?.checked;
+
+            if (isTgChecked) {
+                if (!tgToken || !tgChat) {
+                    showToast('⚠️ Configura el Bot Token y Chat ID de Telegram en el Panel Admin.', 'warning');
+                } else {
+                    try {
+                        const caption = `<b>${article.title}</b>\n\n${article.summary}\n\n📂 <b>Categoría:</b> ${article.category}\n🌐 <b>Leer más:</b> ${siteUrl}`;
+                        
+                        let tgEndpoint = `https://api.telegram.org/bot${tgToken}/sendPhoto`;
+                        let bodyPayload = {
+                            chat_id: tgChat,
+                            photo: article.mediaUrl,
+                            caption: caption,
+                            parse_mode: 'HTML'
+                        };
+
+                        if (!article.mediaUrl || !article.mediaUrl.startsWith('http')) {
+                            tgEndpoint = `https://api.telegram.org/bot${tgToken}/sendMessage`;
+                            bodyPayload = {
+                                chat_id: tgChat,
+                                text: caption,
+                                parse_mode: 'HTML'
+                            };
+                        }
+
+                        const res = await fetch(tgEndpoint, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(bodyPayload)
+                        });
+
+                        const data = await res.json();
+                        if (data.ok) {
+                            showToast('📢 Publicado con éxito en Telegram', 'success');
+                        } else {
+                            console.error('Error Telegram:', data);
+                            showToast(`❌ Error Telegram: ${data.description || 'No se pudo enviar'}`, 'error');
+                        }
+                    } catch (err) {
+                        console.error('Error de red con Telegram:', err);
+                        showToast('❌ Fallo de conexión al publicar en Telegram', 'error');
+                    }
+                }
+            }
+
+            if (isFbChecked) {
+                if (!fbWebhook) {
+                    showToast('⚠️ Configura la URL del Webhook de Make en el Panel Admin.', 'warning');
+                } else {
+                    try {
+                        const res = await fetch(fbWebhook, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                id: article.id,
+                                title: article.title,
+                                summary: article.summary,
+                                content: article.content,
+                                category: article.category,
+                                source: article.source,
+                                mediaUrl: article.mediaUrl,
+                                siteUrl: siteUrl,
+                                date: article.date
+                            })
+                        });
+
+                        if (res.ok) {
+                            showToast('📘 Enviado con éxito a Make/Facebook', 'success');
+                        } else {
+                            showToast('❌ Error al enviar datos al Webhook de Make', 'error');
+                        }
+                    } catch (err) {
+                        console.error('Error de red con Webhook:', err);
+                        showToast('❌ Fallo de conexión con el Webhook de Facebook', 'error');
+                    }
+                }
+            }
+        }
+
         async function saveNews(event) {
             event.preventDefault();
             const id = document.getElementById('editingArticleId').value;
@@ -1171,6 +1314,9 @@
 
             saveToLocalStorage();
             await saveNewsToDB(articleData);
+
+            await publishToSocialNetworks(articleData);
+
             showToast('✅ Noticia guardada', 'success');
             renderNews();
             closePublishModal();
@@ -1271,7 +1417,7 @@
             document.getElementById('setupPinModal').classList.remove('flex');
         }
 
-        function handleSavePin(event) {
+        async function handleSavePin(event) {
             event.preventDefault();
             const current = document.getElementById('currentPinInput').value;
             const next = document.getElementById('newPinInput').value;
@@ -1293,6 +1439,17 @@
             if (next.length === 4 && /^\d{4}$/.test(next) && next === confirm) {
                 storedPinHash = btoa(next);
                 localStorage.setItem('admin_pin_hash', storedPinHash);
+
+                // Sincronizar PIN en Supabase
+                if (supabaseClient) {
+                    try {
+                        await supabaseClient.from('settings').upsert({
+                            id: 'global_config',
+                            pin_hash: storedPinHash
+                        }, { onConflict: 'id' });
+                    } catch(e) {}
+                }
+
                 successEl.classList.remove('hidden');
                 
                 const statusText = document.getElementById('pinStatusText');
