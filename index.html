@@ -610,7 +610,7 @@
         let supabaseClient = null;
         let isAdminLoggedIn = sessionStorage.getItem('admin_logged_in') === 'true';
         let pendingDeleteId = null;
-        let uploadedBase64Media = '';
+        let uploadedStorageUrl = '';
         let selectedCategory = 'todas';
         let newsList = [];
         
@@ -626,6 +626,41 @@
             } catch (e) {
                 console.warn('⚠️ Usando localStorage como respaldo:', e.message);
             }
+        }
+
+        // ===============================
+        // SUBIR ARCHIVO A SUPABASE STORAGE
+        // ===============================
+        async function uploadImageToSupabase(file) {
+            if (!file) return '';
+
+            if (!supabaseClient) {
+                throw new Error("Supabase no está inicializado.");
+            }
+
+            const extension = file.name.split('.').pop().toLowerCase();
+            const cleanFileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${extension}`;
+            const filePath = `news/${cleanFileName}`;
+
+            const { error: uploadError } = await supabaseClient
+                .storage
+                .from("news")
+                .upload(filePath, file, {
+                    cacheControl: '3600',
+                    upsert: false
+                });
+
+            if (uploadError) {
+                console.error("Error en Supabase Storage:", uploadError);
+                throw uploadError;
+            }
+
+            const { data } = supabaseClient
+                .storage
+                .from("news")
+                .getPublicUrl(filePath);
+
+            return data.publicUrl;
         }
 
         async function saveNewsToDB(article) {
@@ -1112,7 +1147,6 @@
             const article = newsList.find(n => n.id === id);
             if (!article) return;
 
-            // Actualizar etiquetas para navegadores y rastreadores dinámicos
             document.title = article.title + " - Tu Información Al Día";
             const ogTitle = document.getElementById('ogTitle');
             if (ogTitle) ogTitle.setAttribute('content', article.title);
@@ -1146,15 +1180,28 @@
             if (window.lucide) lucide.createIcons();
         }
 
-        function handleFileUpload(event, type) {
+        async function handleFileUpload(event, type) {
             const file = event.target.files[0];
             if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                uploadedBase64Media = e.target.result;
-                showToast('📷 Archivo cargado.', 'info');
-            };
-            reader.readAsDataURL(file);
+
+            try {
+                showToast('⏳ Subiendo archivo a Supabase Storage...', 'info');
+                const publicUrl = await uploadImageToSupabase(file);
+                uploadedStorageUrl = publicUrl;
+
+                if (type === 'image') {
+                    const imgInput = document.getElementById('inputImageUrl');
+                    if (imgInput) imgInput.value = publicUrl;
+                } else if (type === 'video') {
+                    const videoInput = document.getElementById('inputVideoUrl');
+                    if (videoInput) videoInput.value = publicUrl;
+                }
+
+                showToast('📷 Archivo subido con éxito a Supabase Storage', 'success');
+            } catch (error) {
+                console.error('Error al subir archivo:', error);
+                showToast('❌ Error al subir el archivo a Supabase Storage', 'error');
+            }
         }
 
         function toggleMediaInputs(type) {
@@ -1169,7 +1216,7 @@
             }
             const modal = document.getElementById('publishModal');
             document.getElementById('newsForm').reset();
-            uploadedBase64Media = '';
+            uploadedStorageUrl = '';
             document.getElementById('inputKeyword').value = '';
             document.getElementById('imagePreviewContainer').classList.add('hidden');
 
@@ -1196,11 +1243,11 @@
 
         function closePublishModal() {
             const modal = document.getElementById('publishModal');
+            uploadedStorageUrl = '';
             modal.classList.add('hidden');
             modal.classList.remove('flex');
         }
 
-        // CORRECCIÓN PRINCIPAL DE DIFUSIÓN EN REDES SOCIALES
         async function publishToSocialNetworks(article) {
             const tgToken = (document.getElementById('cfgTelegramToken')?.value || localStorage.getItem('social_tg_token'))?.trim();
             const tgChat = (document.getElementById('cfgTelegramChatId')?.value || localStorage.getItem('social_tg_chat'))?.trim();
@@ -1214,7 +1261,6 @@
             const isTgChecked = document.getElementById('shareTelegram')?.checked;
             const isFbChecked = document.getElementById('shareFacebook')?.checked;
 
-            // 1. TELEGRAM: PUBLICACIÓN DE FOTO DESACTIVANDO LA VISTA PREVIA ESTÁTICA
             if (isTgChecked) {
                 if (!tgToken || !tgChat) {
                     showToast('⚠️ Configura el Bot Token y Chat ID de Telegram en el Panel Admin.', 'warning');
@@ -1225,7 +1271,6 @@
                         let hasHttpImage = article.mediaUrl && article.mediaUrl.startsWith('http');
                         
                         if (hasHttpImage) {
-                            // Se envía la foto directo y se inhabilita la vista previa del enlace genérico para evitar la tarjeta de la máquina de escribir
                             const resPhoto = await fetch(`https://api.telegram.org/bot${tgToken}/sendPhoto`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
@@ -1242,7 +1287,6 @@
                             if (dataPhoto.ok) {
                                 showToast('📢 Publicado con éxito en Telegram', 'success');
                             } else {
-                                // Respaldo a mensaje de texto sin vista previa si falla la imagen externa
                                 await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
@@ -1275,7 +1319,6 @@
                 }
             }
 
-            // 2. FACEBOOK (MAKE WEBHOOK): ENVÍO ENRIQUECIDO PARA POSTS DE FOTO
             if (isFbChecked) {
                 if (!fbWebhook) {
                     showToast('⚠️ Configura la URL del Webhook de Make en el Panel Admin.', 'warning');
@@ -1330,7 +1373,7 @@
             const content = document.getElementById('inputContent').value.trim();
             const isFeatured = document.getElementById('inputFeatured').checked;
             
-            let mediaUrl = uploadedBase64Media || document.getElementById('inputImageUrl').value.trim();
+            let mediaUrl = uploadedStorageUrl || document.getElementById('inputImageUrl').value.trim();
             if (!mediaUrl) {
                 const imgs = generate4TopicImages(title, keyword, category);
                 mediaUrl = imgs[0].primary;
