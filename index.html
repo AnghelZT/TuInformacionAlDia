@@ -12,10 +12,10 @@
     <title>Tu Información Al Día - Portal de Noticias</title>
     
     <!-- Open Graph Meta Tags -->
-    <meta property="og:title" content="Tu Información Al Día - Portal de Noticias">
-    <meta property="og:description" content="Periodismo Independiente y Veraz - Mantente informado con las últimas noticias.">
-    <meta property="og:image" content="https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=1200&q=80">
-    <meta property="og:url" content="https://tuinformacionaldia.onrender.com">
+    <meta property="og:title" id="ogTitle" content="Tu Información Al Día - Portal de Noticias">
+    <meta property="og:description" id="ogDesc" content="Periodismo Independiente y Veraz - Mantente informado con las últimas noticias.">
+    <meta property="og:image" id="ogImage" content="https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=1200&q=80">
+    <meta property="og:url" id="ogUrl" content="https://tuinformacionaldia.onrender.com">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Tu Información Al Día">
     <meta property="og:locale" content="es_ES">
@@ -466,11 +466,11 @@
                     </span>
                     <div class="flex flex-wrap gap-4 text-xs font-semibold text-gray-700">
                         <label class="flex items-center gap-1.5 cursor-pointer">
-                            <input type="checkbox" id="shareTelegram" class="w-4 h-4 text-sky-600 rounded">
-                            <span>📢 Publicar en Telegram (con Imagen y Enlace Directo)</span>
+                            <input type="checkbox" id="shareTelegram" class="w-4 h-4 text-sky-600 rounded" checked>
+                            <span>📢 Publicar en Telegram (con Imagen e Inhabilitar Vista Previa Estática)</span>
                         </label>
                         <label class="flex items-center gap-1.5 cursor-pointer">
-                            <input type="checkbox" id="shareFacebook" class="w-4 h-4 text-blue-600 rounded">
+                            <input type="checkbox" id="shareFacebook" class="w-4 h-4 text-blue-600 rounded" checked>
                             <span>📘 Publicar en Facebook (vía Webhook)</span>
                         </label>
                     </div>
@@ -710,19 +710,6 @@
                 content: 'En un operativo desplegado de manera simultánea en tres regiones del país, cuerpos de seguridad lograron la detención de doce implicados en una red de comercio ilícito.\n\nFuentes oficiales confirmaron que el procedimiento incluyó el allanamiento de almacenes clandestinos donde se incautó mercancía sin documentación fiscal ni permisos de sanidad.\n\nLos detenidos han sido puestos a disposición de los tribunales correspondientes.',
                 date: '25 Jul, 2026',
                 isFeatured: true
-            },
-            {
-                id: '2',
-                title: 'Propuesta Económica: Análisis sobre la Reducción Temporal de Impuestos a Combustibles',
-                category: 'Economía',
-                source: 'Redacción Tu Información Al Día',
-                sourceUrl: '',
-                mediaType: 'image',
-                mediaUrl: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=1200&q=80',
-                summary: 'Especialistas evalúan el impacto fiscal y comercial de suspender gravámenes para mitigar los costos del transporte y la gasolina.',
-                content: 'Debido a las fluctuaciones en el mercado energético internacional, se debate el alcance de suspender de forma temporal los tributos federales aplicados al consumo de combustible.',
-                date: '25 Jul, 2026',
-                isFeatured: false
             }
         ];
 
@@ -856,7 +843,6 @@
                 document.getElementById('publishBtn').classList.remove('hidden');
             }
 
-            // DETECTAR ENLACE DIRECTO DE NOTICIA COMPARTIDA (?id=XXXX)
             const urlParams = new URLSearchParams(window.location.search);
             const sharedArticleId = urlParams.get('id');
             if (sharedArticleId) {
@@ -870,7 +856,6 @@
             try { localStorage.setItem('prensa_digital_news', JSON.stringify(newsList)); } catch (e) {}
         }
 
-        // CARGAR CONFIGURACIÓN DESDE SUPABASE
         async function loadSocialSettings() {
             let config = null;
             if (supabaseClient) {
@@ -909,7 +894,6 @@
             }
         }
 
-        // GUARDAR CONFIGURACIÓN EN SUPABASE
         async function saveSocialSettings() {
             const tgToken = document.getElementById('cfgTelegramToken').value.trim();
             const tgChat = document.getElementById('cfgTelegramChatId').value.trim();
@@ -1117,7 +1101,6 @@
             document.getElementById('homeView').classList.remove('hidden');
             document.getElementById('articleView').classList.add('hidden');
             
-            // Limpiar parámetro de URL al regresar a la portada
             if (window.history.pushState) {
                 const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
                 window.history.pushState({ path: cleanUrl }, '', cleanUrl);
@@ -1128,6 +1111,15 @@
         function openArticle(id) {
             const article = newsList.find(n => n.id === id);
             if (!article) return;
+
+            // Actualizar etiquetas para navegadores y rastreadores dinámicos
+            document.title = article.title + " - Tu Información Al Día";
+            const ogTitle = document.getElementById('ogTitle');
+            if (ogTitle) ogTitle.setAttribute('content', article.title);
+            const ogDesc = document.getElementById('ogDesc');
+            if (ogDesc) ogDesc.setAttribute('content', article.summary);
+            const ogImage = document.getElementById('ogImage');
+            if (ogImage) ogImage.setAttribute('content', article.mediaUrl);
 
             document.getElementById('articleCategory').textContent = article.category;
             document.getElementById('articleSourceText').textContent = article.source;
@@ -1145,7 +1137,6 @@
             document.getElementById('homeView').classList.add('hidden');
             document.getElementById('articleView').classList.remove('hidden');
 
-            // Actualizar URL del navegador para compartir directamente
             if (window.history.pushState) {
                 const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?id=' + id;
                 window.history.pushState({ path: newUrl }, '', newUrl);
@@ -1209,7 +1200,7 @@
             modal.classList.remove('flex');
         }
 
-        // DIFUSIÓN AUTOMÁTICA A TELEGRAM Y FACEBOOK
+        // CORRECCIÓN PRINCIPAL DE DIFUSIÓN EN REDES SOCIALES
         async function publishToSocialNetworks(article) {
             const tgToken = (document.getElementById('cfgTelegramToken')?.value || localStorage.getItem('social_tg_token'))?.trim();
             const tgChat = (document.getElementById('cfgTelegramChatId')?.value || localStorage.getItem('social_tg_chat'))?.trim();
@@ -1218,13 +1209,12 @@
             let rawSiteUrl = (document.getElementById('cfgSiteUrl')?.value || localStorage.getItem('social_site_url'))?.trim() || window.location.origin;
             rawSiteUrl = rawSiteUrl.replace(/\/$/, '');
             
-            // Enlace directo único a esta noticia específica
             const articleUrl = `${rawSiteUrl}?id=${article.id}`;
 
             const isTgChecked = document.getElementById('shareTelegram')?.checked;
             const isFbChecked = document.getElementById('shareFacebook')?.checked;
 
-            // 1. DIFUSIÓN TELEGRAM
+            // 1. TELEGRAM: PUBLICACIÓN DE FOTO DESACTIVANDO LA VISTA PREVIA ESTÁTICA
             if (isTgChecked) {
                 if (!tgToken || !tgChat) {
                     showToast('⚠️ Configura el Bot Token y Chat ID de Telegram en el Panel Admin.', 'warning');
@@ -1233,42 +1223,50 @@
                         const tgCaption = `<b>${article.title}</b>\n\n${article.summary}\n\n📂 <b>Categoría:</b> ${article.category}\n👤 <b>Por:</b> ${article.source} - ${article.date}\n\n🌐 <b>Leer noticia completa:</b> ${articleUrl}`;
                         
                         let hasHttpImage = article.mediaUrl && article.mediaUrl.startsWith('http');
-                        let tgEndpoint = hasHttpImage 
-                            ? `https://api.telegram.org/bot${tgToken}/sendPhoto` 
-                            : `https://api.telegram.org/bot${tgToken}/sendMessage`;
                         
-                        let bodyPayload = hasHttpImage ? {
-                            chat_id: tgChat,
-                            photo: article.mediaUrl,
-                            caption: tgCaption,
-                            parse_mode: 'HTML'
-                        } : {
-                            chat_id: tgChat,
-                            text: tgCaption,
-                            parse_mode: 'HTML'
-                        };
+                        if (hasHttpImage) {
+                            // Se envía la foto directo y se inhabilita la vista previa del enlace genérico para evitar la tarjeta de la máquina de escribir
+                            const resPhoto = await fetch(`https://api.telegram.org/bot${tgToken}/sendPhoto`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    chat_id: tgChat,
+                                    photo: article.mediaUrl,
+                                    caption: tgCaption,
+                                    parse_mode: 'HTML',
+                                    disable_web_page_preview: true
+                                })
+                            });
 
-                        const res = await fetch(tgEndpoint, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(bodyPayload)
-                        });
-
-                        const data = await res.json();
-                        if (data.ok) {
-                            showToast('📢 Publicado con éxito en Telegram', 'success');
-                        } else {
-                            // Reintento enviando como texto si la imagen falló por restricciones CORS de Telegram
-                            if (hasHttpImage) {
+                            const dataPhoto = await resPhoto.json();
+                            if (dataPhoto.ok) {
+                                showToast('📢 Publicado con éxito en Telegram', 'success');
+                            } else {
+                                // Respaldo a mensaje de texto sin vista previa si falla la imagen externa
                                 await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ chat_id: tgChat, text: tgCaption, parse_mode: 'HTML' })
+                                    body: JSON.stringify({ 
+                                        chat_id: tgChat, 
+                                        text: tgCaption, 
+                                        parse_mode: 'HTML',
+                                        disable_web_page_preview: true 
+                                    })
                                 });
-                                showToast('📢 Publicado en Telegram (como texto)', 'success');
-                            } else {
-                                showToast(`❌ Error Telegram: ${data.description}`, 'error');
+                                showToast('📢 Publicado en Telegram (como texto limpio)', 'success');
                             }
+                        } else {
+                            await fetch(`https://api.telegram.org/bot${tgToken}/sendMessage`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ 
+                                    chat_id: tgChat, 
+                                    text: tgCaption, 
+                                    parse_mode: 'HTML',
+                                    disable_web_page_preview: true 
+                                })
+                            });
+                            showToast('📢 Publicado en Telegram', 'success');
                         }
                     } catch (err) {
                         console.error('Error de red con Telegram:', err);
@@ -1277,13 +1275,12 @@
                 }
             }
 
-            // 2. DIFUSIÓN FACEBOOK (VÍA MAKE WEBHOOK)
+            // 2. FACEBOOK (MAKE WEBHOOK): ENVÍO ENRIQUECIDO PARA POSTS DE FOTO
             if (isFbChecked) {
                 if (!fbWebhook) {
                     showToast('⚠️ Configura la URL del Webhook de Make en el Panel Admin.', 'warning');
                 } else {
                     try {
-                        // Formato completo enriquecido para que Make / Facebook publique texto + imagen + link sin perder datos
                         const formattedMessage = `${article.title}\n\n${article.summary}\n\nPor: ${article.source} - ${article.date}\n\nLeer noticia completa: ${articleUrl}`;
 
                         const res = await fetch(fbWebhook, {
@@ -1297,9 +1294,12 @@
                                 category: article.category,
                                 source: article.source,
                                 mediaUrl: article.mediaUrl,
+                                photo_url: article.mediaUrl,
                                 image_url: article.mediaUrl,
+                                picture: article.mediaUrl,
                                 siteUrl: articleUrl,
                                 link: articleUrl,
+                                url: articleUrl,
                                 date: article.date,
                                 message: formattedMessage,
                                 caption: `${article.source} - ${article.date}`
